@@ -366,15 +366,89 @@
   }
 
   .task-card-column {
-    @apply items-stretch;
+    @apply w-full items-stretch;
   }
 
   .task-card-header {
-    @apply items-center;
+    width: 550px;
+  }
+
+  /* .task-card-main {
+    @apply grid w-full min-w-0 justify-self-stretch gap-1;
+  } */
+
+  .task-card-title-button {
+    @apply grid w-full justify-self-stretch gap-1 rounded-2xl border-0 bg-transparent p-0 text-left text-inherit;
+  }
+
+  .task-card-title-button strong {
+    @apply text-[1.02rem];
+  }
+
+  .task-card-title-hint {
+    @apply text-[0.82rem];
+    color: var(--muted-text);
+  }
+
+  /* .task-card-actions {
+    @apply inline-flex justify-self-end items-start gap-2;
+  } */
+
+  .task-card-action-toggle {
+    @apply min-h-11 min-w-11 rounded-[16px] px-4 py-2 text-[1.35rem] leading-none;
+  }
+
+  .task-action-menu {
+    @apply absolute right-4 top-14 z-30 grid min-w-52 rounded-2xl border p-2 backdrop-blur-[14px];
+    border-color: rgba(173, 199, 255, 0.16);
+    background: rgba(7, 16, 30, 0.96);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.24);
+  }
+
+  .task-action-item {
+    @apply w-full rounded-[0.7rem] border-0 bg-transparent px-3 py-3 text-left text-inherit;
+  }
+
+  .task-action-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .task-action-item.danger {
+    color: #fca5a5;
+  }
+
+  .task-action-item.danger:hover {
+    background: rgba(248, 113, 113, 0.12);
+  }
+
+  .task-action-submenu {
+    @apply mt-2 grid gap-1;
+  }
+
+  .task-action-subitem {
+    @apply pl-4;
+  }
+
+  .task-action-empty {
+    @apply m-0 px-3 py-2 text-[0.88rem];
+    color: var(--muted-text);
   }
 
   .task-card-body {
-    @apply grid gap-4;
+    @apply grid w-full gap-4;
+  }
+
+  .task-card-collapsed-body {
+    @apply w-full gap-2;
+  }
+
+  .task-card-preview {
+    @apply m-0 text-[0.95rem];
+    color: var(--text-muted);
+  }
+
+  .task-card-expanded {
+    position: relative;
   }
 
   .task-meta {
@@ -455,7 +529,7 @@
   }
 
   .task-card {
-    @apply items-start rounded-2xl p-4;
+    @apply relative grid w-full gap-4 rounded-2xl p-4;
     background: rgba(255, 255, 255, 0.03);
   }
 

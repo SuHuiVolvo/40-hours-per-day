@@ -1,18 +1,25 @@
+import { useEffect, useState } from "react";
 import { CardCollapseButton } from "./CardCollapseButton";
 import {
   formatDate,
   formatTimestamp,
+  type PracticeSection,
   type PracticeTask,
   type TaskEditForm,
 } from "../lib/practice";
 
 type TaskCardProps = {
   task: PracticeTask;
+  sections: PracticeSection[];
   editingTaskId: string | null;
   editingTaskForm: TaskEditForm;
   taskSaving: boolean;
+  taskError: string;
   onBeginEdit: (task: PracticeTask) => void;
   onDelete: (taskId: string) => void;
+  onDuplicate: (task: PracticeTask) => void;
+  onMove: (taskId: string, sectionId: string) => void;
+  onArchive: (taskId: string) => void;
   onSaveEdit: (taskId: string) => void;
   onCancelEdit: () => void;
   onToggleCompletion: (task: PracticeTask) => void;
@@ -21,49 +28,175 @@ type TaskCardProps = {
 
 export function TaskCard({
   task,
+  sections,
   editingTaskId,
   editingTaskForm,
   taskSaving,
+  taskError,
   onBeginEdit,
   onDelete,
+  onDuplicate,
+  onMove,
+  onArchive,
   onSaveEdit,
   onCancelEdit,
   onToggleCompletion,
   onChangeEditForm,
 }: TaskCardProps) {
   const isEditing = editingTaskId === task.id;
+  const [isExpanded, setIsExpanded] = useState(isEditing);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const [isMoveMenuOpen, setIsMoveMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (isEditing) {
+      setIsExpanded(true);
+      setIsActionMenuOpen(false);
+      setIsMoveMenuOpen(false);
+    }
+  }, [isEditing]);
+
+  const availableSections = sections.filter(
+    (section) => section.id !== task.sectionId,
+  );
+
+  const handleToggleExpanded = () => {
+    if (isEditing) {
+      return;
+    }
+
+    setIsExpanded((current) => !current);
+    setIsActionMenuOpen(false);
+    setIsMoveMenuOpen(false);
+  };
+
+  const handleBeginEdit = () => {
+    setIsExpanded(true);
+    setIsActionMenuOpen(false);
+    setIsMoveMenuOpen(false);
+    onBeginEdit(task);
+  };
+
+  const handleAction = (handler: () => void) => {
+    handler();
+    setIsActionMenuOpen(false);
+    setIsMoveMenuOpen(false);
+  };
 
   return (
-    <article className="task-card task-card-column">
+    <article
+      className={`task-card task-card-column ${
+        isEditing || isExpanded ? "task-card-expanded" : "task-card-collapsed"
+      }`}
+    >
       <div className="task-card-header">
-        <label className="task-complete-toggle">
-          <input
-            type="checkbox"
-            checked={task.isCompleted}
-            onChange={() => onToggleCompletion(task)}
-          />
-          <span>{task.isCompleted ? "Done" : "Open"}</span>
-        </label>
-        <div className="task-actions">
+        <div className="flex gap-2">
+          <label className="task-complete-toggle">
+            <input
+              type="checkbox"
+              checked={task.isCompleted}
+              onChange={() => onToggleCompletion(task)}
+              disabled={taskSaving}
+            />
+          </label>
+          <strong>{task.title}</strong>
+        </div>
+
+        <div className="task-card-actions">
           <button
             type="button"
-            className="ghost"
-            onClick={() => onBeginEdit(task)}
+            className="section-detail-toggle task-card-action-toggle"
+            onClick={() => {
+              setIsActionMenuOpen((current) => !current);
+              setIsMoveMenuOpen(false);
+            }}
+            aria-expanded={isActionMenuOpen}
+            aria-controls={`task-actions-${task.id}`}
+            disabled={taskSaving}
           >
-            Edit
-          </button>
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => onDelete(task.id)}
-          >
-            Delete
+            ⋮
           </button>
         </div>
       </div>
 
+      {isActionMenuOpen ? (
+        <div
+          id={`task-actions-${task.id}`}
+          className="task-action-menu"
+          role="menu"
+        >
+          <button
+            type="button"
+            className="task-action-item"
+            onClick={() => handleAction(() => handleBeginEdit())}
+            disabled={taskSaving}
+          >
+            Edit task
+          </button>
+          <button
+            type="button"
+            className="task-action-item"
+            onClick={() => handleAction(() => onDuplicate(task))}
+            disabled={taskSaving}
+          >
+            Duplicate task
+          </button>
+          <button
+            type="button"
+            className="task-action-item"
+            onClick={() => setIsMoveMenuOpen((current) => !current)}
+            disabled={taskSaving || availableSections.length === 0}
+          >
+            Move to session
+          </button>
+          {isMoveMenuOpen ? (
+            <div
+              className="task-action-submenu"
+              role="group"
+              aria-label="Move task to session"
+            >
+              {availableSections.length > 0 ? (
+                availableSections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    className="task-action-item task-action-subitem"
+                    onClick={() =>
+                      handleAction(() => onMove(task.id, section.id))
+                    }
+                    disabled={taskSaving}
+                  >
+                    {section.name}
+                  </button>
+                ))
+              ) : (
+                <p className="task-action-empty">
+                  No other sessions available.
+                </p>
+              )}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className="task-action-item"
+            onClick={() => handleAction(() => onArchive(task.id))}
+            disabled={taskSaving}
+          >
+            Archive task
+          </button>
+          <button
+            type="button"
+            className="task-action-item danger"
+            onClick={() => handleAction(() => onDelete(task.id))}
+            disabled={taskSaving}
+          >
+            Delete task
+          </button>
+        </div>
+      ) : null}
+
       {isEditing ? (
-        <div className="stack task-editor">
+        <div className="stack task-editor w-full">
           <CardCollapseButton
             onClick={onCancelEdit}
             ariaLabel="Hide edit task card"
@@ -120,7 +253,8 @@ export function TaskCard({
             />
             <span>Mark as completed</span>
           </label>
-          <div className="section-actions">
+          {taskError ? <p className="status error">{taskError}</p> : null}
+          <div className="section-actions task-editor-actions">
             <button
               type="button"
               className="primary"
@@ -137,16 +271,10 @@ export function TaskCard({
       ) : (
         <div className="task-card-body">
           <div>
-            <strong>{task.title}</strong>
             <p>{task.details || "No extra details added."}</p>
           </div>
           <div className="task-meta">
             <span>Deadline: {formatDate(task.deadline)}</span>
-            <span>
-              {task.isCompleted
-                ? `Completed ${formatTimestamp(task.completedAt ?? task.updatedAt)}`
-                : "Not completed"}
-            </span>
           </div>
         </div>
       )}

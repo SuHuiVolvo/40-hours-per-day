@@ -4,7 +4,6 @@ import { CardCollapseButton } from "./CardCollapseButton";
 import { SectionCard } from "./SectionCard";
 import { TaskCard } from "./TaskCard";
 import {
-  backlogSectionId,
   type PracticeSection,
   type PracticeTask,
   type SectionForm,
@@ -59,6 +58,9 @@ type PracticeRoadmapProps = {
   onSaveTaskEdit: (taskId: string) => void | Promise<void>;
   onToggleTaskCompletion: (task: PracticeTask) => void | Promise<void>;
   onRemoveTask: (taskId: string) => void | Promise<void>;
+  onDuplicateTask: (task: PracticeTask) => void | Promise<void>;
+  onMoveTask: (taskId: string, sectionId: string) => void | Promise<void>;
+  onArchiveTask: (taskId: string) => void | Promise<void>;
 };
 
 export function PracticeRoadmap({
@@ -105,6 +107,9 @@ export function PracticeRoadmap({
   onSaveTaskEdit,
   onToggleTaskCompletion,
   onRemoveTask,
+  onDuplicateTask,
+  onMoveTask,
+  onArchiveTask,
 }: PracticeRoadmapProps) {
   return (
     <section className="panel panel-wide roadmap-panel">
@@ -289,6 +294,11 @@ export function PracticeRoadmap({
                 </div>
 
                 <div className="section-summary-tasks h-full">
+                  {taskError && !isTaskCreatorOpen && editingTaskId === null ? (
+                    <p className="status error section-summary-error">
+                      {taskError}
+                    </p>
+                  ) : null}
                   {sectionError ? (
                     <p className="status error section-summary-error">
                       {sectionError}
@@ -448,16 +458,21 @@ export function PracticeRoadmap({
                     </form>
                   ) : null}
                   {selectedTasks.length > 0 ? (
-                    <div className="task-list">
+                    <div className="task-list w-full">
                       {selectedTasks.map((task) => (
                         <TaskCard
                           key={task.id}
                           task={task}
+                          sections={sections}
                           editingTaskId={editingTaskId}
                           editingTaskForm={editingTaskForm}
                           taskSaving={taskSaving}
+                          taskError={taskError}
                           onBeginEdit={onBeginTaskEdit}
                           onDelete={onRemoveTask}
+                          onDuplicate={onDuplicateTask}
+                          onMove={onMoveTask}
+                          onArchive={onArchiveTask}
                           onSaveEdit={onSaveTaskEdit}
                           onCancelEdit={() => {
                             setEditingTaskId(null);

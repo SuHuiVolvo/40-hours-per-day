@@ -30,6 +30,7 @@ db.exec(`
     details TEXT NOT NULL DEFAULT '',
     deadline TEXT NOT NULL DEFAULT '',
     isCompleted INTEGER NOT NULL DEFAULT 0,
+    isArchived INTEGER NOT NULL DEFAULT 0,
     completedAt TEXT,
     updatedAt TEXT NOT NULL DEFAULT '',
     createdAt TEXT NOT NULL
@@ -77,6 +78,7 @@ db.prepare(
 ensureColumn("tasks", "sectionId TEXT NOT NULL DEFAULT 'backlog'", "sectionId");
 ensureColumn("tasks", "deadline TEXT NOT NULL DEFAULT ''", "deadline");
 ensureColumn("tasks", "isCompleted INTEGER NOT NULL DEFAULT 0", "isCompleted");
+ensureColumn("tasks", "isArchived INTEGER NOT NULL DEFAULT 0", "isArchived");
 ensureColumn("tasks", "completedAt TEXT", "completedAt");
 ensureColumn("tasks", "updatedAt TEXT NOT NULL DEFAULT ''", "updatedAt");
 

@@ -351,38 +351,165 @@ function App() {
   };
 
   const toggleTaskCompletion = async (task: PracticeTask) => {
-    const response = await fetch(`${API_BASE}/api/tasks/${task.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isCompleted: !task.isCompleted }),
-    });
+    setTaskError("");
+    setTaskSaving(true);
 
-    if (!response.ok) {
-      throw new Error(
-        await readErrorMessage(response, "Unable to update task."),
+    try {
+      const response = await fetch(`${API_BASE}/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isCompleted: !task.isCompleted }),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await readErrorMessage(response, "Unable to update task."),
+        );
+      }
+
+      await refreshRoadmap();
+    } catch (error) {
+      setTaskError(
+        error instanceof Error ? error.message : "Unable to update task.",
       );
+    } finally {
+      setTaskSaving(false);
     }
-
-    await refreshRoadmap();
   };
 
   const removeTask = async (taskId: string) => {
-    const response = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
-      method: "DELETE",
-    });
+    setTaskError("");
+    setTaskSaving(true);
 
-    if (!response.ok && response.status !== 204) {
-      throw new Error(
-        await readErrorMessage(response, "Unable to delete task."),
+    try {
+      const response = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok && response.status !== 204) {
+        throw new Error(
+          await readErrorMessage(response, "Unable to delete task."),
+        );
+      }
+
+      if (editingTaskId === taskId) {
+        setEditingTaskId(null);
+        setEditingTaskForm(initialTaskEditForm);
+      }
+
+      await refreshRoadmap();
+    } catch (error) {
+      setTaskError(
+        error instanceof Error ? error.message : "Unable to delete task.",
       );
+    } finally {
+      setTaskSaving(false);
     }
+  };
 
-    if (editingTaskId === taskId) {
-      setEditingTaskId(null);
-      setEditingTaskForm(initialTaskEditForm);
+  const duplicateTask = async (task: PracticeTask) => {
+    setTaskError("");
+    setTaskSaving(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sectionId: task.sectionId,
+          title: `${task.title} (copy)`,
+          details: task.details,
+          deadline: task.deadline ?? "",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await readErrorMessage(response, "Unable to duplicate task."),
+        );
+      }
+
+      const duplicatedTask = (await response.json()) as PracticeTask;
+      setEditingTaskId(duplicatedTask.id);
+      setEditingTaskForm({
+        title: duplicatedTask.title,
+        details: duplicatedTask.details,
+        deadline: duplicatedTask.deadline ?? "",
+        isCompleted: duplicatedTask.isCompleted,
+      });
+
+      await refreshRoadmap();
+    } catch (error) {
+      setTaskError(
+        error instanceof Error ? error.message : "Unable to duplicate task.",
+      );
+    } finally {
+      setTaskSaving(false);
     }
+  };
 
-    await refreshRoadmap();
+  const moveTask = async (taskId: string, sectionId: string) => {
+    setTaskError("");
+    setTaskSaving(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sectionId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await readErrorMessage(response, "Unable to move task."),
+        );
+      }
+
+      if (editingTaskId === taskId) {
+        setEditingTaskId(null);
+        setEditingTaskForm(initialTaskEditForm);
+      }
+
+      await refreshRoadmap();
+    } catch (error) {
+      setTaskError(
+        error instanceof Error ? error.message : "Unable to move task.",
+      );
+    } finally {
+      setTaskSaving(false);
+    }
+  };
+
+  const archiveTask = async (taskId: string) => {
+    setTaskError("");
+    setTaskSaving(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isArchived: true }),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await readErrorMessage(response, "Unable to archive task."),
+        );
+      }
+
+      if (editingTaskId === taskId) {
+        setEditingTaskId(null);
+        setEditingTaskForm(initialTaskEditForm);
+      }
+
+      await refreshRoadmap();
+    } catch (error) {
+      setTaskError(
+        error instanceof Error ? error.message : "Unable to archive task.",
+      );
+    } finally {
+      setTaskSaving(false);
+    }
   };
 
   const uploadNote = async () => {
@@ -539,6 +666,9 @@ function App() {
         onSaveTaskEdit={saveTaskEdit}
         onToggleTaskCompletion={toggleTaskCompletion}
         onRemoveTask={removeTask}
+        onDuplicateTask={duplicateTask}
+        onMoveTask={moveTask}
+        onArchiveTask={archiveTask}
       />
 
       <PracticeMediaPanels

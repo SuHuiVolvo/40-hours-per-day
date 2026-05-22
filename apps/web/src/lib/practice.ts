@@ -5,6 +5,7 @@ export type PracticeTask = {
   details: string;
   deadline: string | null;
   isCompleted: boolean;
+  isArchived: boolean;
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;

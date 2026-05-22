@@ -12,6 +12,7 @@ interface PracticeTask {
   details: string;
   deadline: string | null;
   isCompleted: boolean;
+  isArchived: boolean;
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -41,24 +42,25 @@ interface UploadRecord {
 
 const selectTasks = db.prepare(
   `
-    SELECT id, sectionId, title, details, deadline, isCompleted, completedAt, createdAt, updatedAt
+    SELECT id, sectionId, title, details, deadline, isCompleted, isArchived, completedAt, createdAt, updatedAt
     FROM tasks
+    WHERE isArchived = 0
     ORDER BY isCompleted ASC, CASE WHEN deadline = '' THEN 1 ELSE 0 END, deadline ASC, createdAt DESC
   `,
 );
 const selectTaskById = db.prepare(
-  "SELECT id, sectionId, title, details, deadline, isCompleted, completedAt, createdAt, updatedAt FROM tasks WHERE id = ?",
+  "SELECT id, sectionId, title, details, deadline, isCompleted, isArchived, completedAt, createdAt, updatedAt FROM tasks WHERE id = ?",
 );
 const insertTask = db.prepare(
   `
-    INSERT INTO tasks (id, sectionId, title, details, deadline, isCompleted, completedAt, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tasks (id, sectionId, title, details, deadline, isCompleted, isArchived, completedAt, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
 );
 const updateTask = db.prepare(
   `
     UPDATE tasks
-    SET sectionId = ?, title = ?, details = ?, deadline = ?, isCompleted = ?, completedAt = ?, updatedAt = ?
+    SET sectionId = ?, title = ?, details = ?, deadline = ?, isCompleted = ?, isArchived = ?, completedAt = ?, updatedAt = ?
     WHERE id = ?
   `,
 );
@@ -96,6 +98,7 @@ const toPracticeTask = (row: Record<string, unknown>): PracticeTask => ({
   details: String(row.details),
   deadline: String(row.deadline || "") || null,
   isCompleted: toBoolean(row.isCompleted),
+  isArchived: toBoolean(row.isArchived),
   completedAt: String(row.completedAt || "") || null,
   createdAt: String(row.createdAt),
   updatedAt: String(row.updatedAt || row.createdAt),
@@ -324,6 +327,7 @@ app.post("/api/tasks", (request, response) => {
     details: details?.trim() ?? "",
     deadline: deadline?.trim() ? deadline.trim() : null,
     isCompleted: false,
+    isArchived: false,
     completedAt: null,
     createdAt: now,
     updatedAt: now,
@@ -335,6 +339,7 @@ app.post("/api/tasks", (request, response) => {
     task.title,
     task.details,
     task.deadline ?? "",
+    0,
     0,
     null,
     task.createdAt,
@@ -370,6 +375,7 @@ app.patch("/api/tasks/:id", (request, response) => {
       ? currentTask.deadline
       : payload.deadline?.trim() || null;
   const nextCompleted = payload.isCompleted ?? currentTask.isCompleted;
+  const nextArchived = payload.isArchived ?? currentTask.isArchived;
   const nextCompletedAt = nextCompleted
     ? (currentTask.completedAt ?? new Date().toISOString())
     : null;
@@ -381,6 +387,7 @@ app.patch("/api/tasks/:id", (request, response) => {
     nextDetails,
     nextDeadline ?? "",
     nextCompleted ? 1 : 0,
+    nextArchived ? 1 : 0,
     nextCompletedAt,
     updatedAt,
     currentTask.id,
@@ -393,6 +400,7 @@ app.patch("/api/tasks/:id", (request, response) => {
     details: nextDetails,
     deadline: nextDeadline,
     isCompleted: nextCompleted,
+    isArchived: nextArchived,
     completedAt: nextCompletedAt,
     updatedAt,
   });
