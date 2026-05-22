@@ -1,10 +1,9 @@
 import cors from "cors";
 import express from "express";
 import multer from "multer";
-import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { v4 as uuidv4 } from "uuid";
+import { db } from "./db.js";
 
 interface PracticeTask {
   id: string;
@@ -13,44 +12,39 @@ interface PracticeTask {
   createdAt: string;
 }
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, "..");
-const dataDir = path.join(rootDir, "data");
-const uploadsDir = path.join(rootDir, "uploads");
-const notesDir = path.join(uploadsDir, "notes");
-const recordingsDir = path.join(uploadsDir, "recordings");
-const tasksFile = path.join(dataDir, "tasks.json");
-
-for (const directory of [dataDir, uploadsDir, notesDir, recordingsDir]) {
-  fs.mkdirSync(directory, { recursive: true });
+interface UploadRecord {
+  id: string;
+  kind: "pdf" | "recording";
+  originalName: string;
+  fileName: string;
+  mimeType: string;
+  data: Buffer;
+  createdAt: string;
 }
 
-const readTasks = (): PracticeTask[] => {
-  try {
-    const raw = fs.readFileSync(tasksFile, "utf8");
-    const parsed = JSON.parse(raw) as PracticeTask[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
+const selectTasks = db.prepare(
+  "SELECT id, title, details, createdAt FROM tasks ORDER BY createdAt DESC",
+);
+const insertTask = db.prepare(
+  "INSERT INTO tasks (id, title, details, createdAt) VALUES (?, ?, ?, ?)",
+);
+const deleteTask = db.prepare("DELETE FROM tasks WHERE id = ?");
+const selectUploadById = db.prepare(
+  "SELECT id, kind, originalName, fileName, mimeType, data, createdAt FROM uploads WHERE id = ?",
+);
+const insertUpload = db.prepare(
+  "INSERT INTO uploads (id, kind, originalName, fileName, mimeType, data, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+);
 
-const writeTasks = (tasks: PracticeTask[]) => {
-  fs.writeFileSync(tasksFile, JSON.stringify(tasks, null, 2));
-};
+const toPracticeTask = (row: Record<string, unknown>): PracticeTask => ({
+  id: String(row.id),
+  title: String(row.title),
+  details: String(row.details),
+  createdAt: String(row.createdAt),
+});
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_request, file, callback) => {
-      const isAudio = file.mimetype.startsWith("audio/");
-      callback(null, isAudio ? recordingsDir : notesDir);
-    },
-    filename: (_request, file, callback) => {
-      const extension = path.extname(file.originalname) || "";
-      callback(null, `${uuidv4()}${extension}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   fileFilter: (_request, file, callback) => {
     const allowed =
       file.mimetype === "application/pdf" || file.mimetype.startsWith("audio/");
@@ -69,14 +63,13 @@ const upload = multer({
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
-app.use("/uploads", express.static(uploadsDir));
 
 app.get("/api/health", (_request, response) => {
   response.json({ status: "ok" });
 });
 
 app.get("/api/tasks", (_request, response) => {
-  response.json(readTasks());
+  response.json(selectTasks.all().map((row) => toPracticeTask(row)));
 });
 
 app.post("/api/tasks", (request, response) => {
@@ -93,21 +86,17 @@ app.post("/api/tasks", (request, response) => {
     createdAt: new Date().toISOString(),
   };
 
-  const tasks = readTasks();
-  tasks.unshift(task);
-  writeTasks(tasks);
+  insertTask.run(task.id, task.title, task.details, task.createdAt);
   response.status(201).json(task);
 });
 
 app.delete("/api/tasks/:id", (request, response) => {
-  const tasks = readTasks();
-  const filtered = tasks.filter((task) => task.id !== request.params.id);
-  if (filtered.length === tasks.length) {
+  const result = deleteTask.run(request.params.id);
+  if (result.changes === 0) {
     response.status(404).json({ message: "Task not found." });
     return;
   }
 
-  writeTasks(filtered);
   response.status(204).send();
 });
 
@@ -117,10 +106,24 @@ app.post("/api/uploads/pdf", upload.single("file"), (request, response) => {
     return;
   }
 
+  const uploadId = uuidv4();
+  const fileName = `${uploadId}${path.extname(request.file.originalname) || ".pdf"}`;
+  const createdAt = new Date().toISOString();
+  insertUpload.run(
+    uploadId,
+    "pdf",
+    request.file.originalname,
+    fileName,
+    request.file.mimetype,
+    request.file.buffer,
+    createdAt,
+  );
+
   response.status(201).json({
-    fileName: request.file.filename,
+    id: uploadId,
+    fileName,
     originalName: request.file.originalname,
-    url: `/uploads/notes/${request.file.filename}`,
+    url: `/api/uploads/${uploadId}`,
   });
 });
 
@@ -133,13 +136,44 @@ app.post(
       return;
     }
 
+    const uploadId = uuidv4();
+    const fileName = `${uploadId}${path.extname(request.file.originalname) || ".webm"}`;
+    const createdAt = new Date().toISOString();
+    insertUpload.run(
+      uploadId,
+      "recording",
+      request.file.originalname,
+      fileName,
+      request.file.mimetype,
+      request.file.buffer,
+      createdAt,
+    );
+
     response.status(201).json({
-      fileName: request.file.filename,
+      id: uploadId,
+      fileName,
       originalName: request.file.originalname,
-      url: `/uploads/recordings/${request.file.filename}`,
+      url: `/api/uploads/${uploadId}`,
     });
   },
 );
+
+app.get("/api/uploads/:id", (request, response) => {
+  const upload = selectUploadById.get(request.params.id) as
+    | UploadRecord
+    | undefined;
+  if (!upload) {
+    response.status(404).json({ message: "Upload not found." });
+    return;
+  }
+
+  response.setHeader("Content-Type", upload.mimeType);
+  response.setHeader(
+    "Content-Disposition",
+    `inline; filename="${upload.originalName.replaceAll('"', "")}"`,
+  );
+  response.send(upload.data);
+});
 
 app.use(
   (

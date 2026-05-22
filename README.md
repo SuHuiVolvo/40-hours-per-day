@@ -35,4 +35,4 @@ Backend: http://localhost:3001
 
 ## Notes
 
-The backend stores task data and uploaded files inside `apps/api/data` and `apps/api/uploads`. These paths are created automatically at runtime.
+The backend stores practice tasks and uploaded PDF/audio blobs in a SQLite database at `apps/api/data/hoppy.db`. The database file is created automatically at runtime.
