@@ -264,7 +264,7 @@
   }
 
   .section-summary-tasks {
-    @apply basis-full grid justify-items-start gap-2 pt-2;
+    @apply grid w-full self-start justify-items-start content-start gap-2 pt-0;
   }
 
   .summary-metrics {
@@ -319,7 +319,7 @@
   }
 
   .task-create-empty-toggle {
-    @apply inline-flex w-auto items-center justify-start gap-2 self-start;
+    @apply inline-flex w-auto items-start justify-start gap-2 self-start justify-self-start mt-0;
   }
 
   .task-create-empty-icon {

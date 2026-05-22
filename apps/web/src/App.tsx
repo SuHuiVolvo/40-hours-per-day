@@ -1,160 +1,105 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { PracticeMediaPanels } from "./components/PracticeMediaPanels";
+import { PracticeRoadmap } from "./components/PracticeRoadmap";
+import {
+  API_BASE,
+  backlogSectionId,
+  initialSectionForm,
+  initialTaskEditForm,
+  initialTaskForm,
+  readErrorMessage,
+  type PracticeSection,
+  type PracticeTask,
+  type SectionForm,
+  type TaskEditForm,
+  type TaskForm,
+  type UploadedFile,
+} from "./lib/practice";
 
-type PracticeTask = {
-  id: string;
-  sectionId: string;
-  title: string;
-  details: string;
-  deadline: string | null;
-  isCompleted: boolean;
-  completedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type PracticeSection = {
-  id: string;
-  name: string;
-  description: string;
-  sortOrder: number;
-  createdAt: string;
-  taskCount: number;
-  completedCount: number;
-  completionPercent: number;
-  tasks: PracticeTask[];
-};
-
-type UploadedFile = {
-  fileName: string;
-  originalName: string;
-  url: string;
-};
-
-type SectionForm = {
-  name: string;
-  description: string;
-};
-
-type TaskForm = {
-  title: string;
-  details: string;
-  deadline: string;
-};
-
-type TaskEditForm = TaskForm & {
-  isCompleted: boolean;
-};
-
-const API_BASE = "";
-const backlogSectionId = "backlog";
-
-const initialSectionForm: SectionForm = {
-  name: "",
-  description: "",
-};
-
-const initialTaskForm: TaskForm = {
-  title: "",
-  details: "",
-  deadline: "",
-};
-
-const initialTaskEditForm: TaskEditForm = {
-  title: "",
-  details: "",
-  deadline: "",
-  isCompleted: false,
-};
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "No deadline";
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(`${value}T12:00:00`));
-}
-
-function formatTimestamp(value: string) {
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-const readErrorMessage = async (response: Response, fallback: string) => {
-  const body = await response.text();
-  if (!body) {
-    return fallback;
-  }
-
-  try {
-    const payload = JSON.parse(body) as { message?: string };
-    return payload.message ?? fallback;
-  } catch {
-    return body || fallback;
-  }
-};
-
-export default function App() {
+function App() {
   const [sections, setSections] = useState<PracticeSection[]>([]);
-  const [selectedSectionId, setSelectedSectionId] = useState("");
-  const [sectionForm, setSectionForm] = useState(initialSectionForm);
-  const [sectionDraft, setSectionDraft] = useState(initialSectionForm);
-  const [isCreateSectionOpen, setIsCreateSectionOpen] = useState(false);
-  const [isUpdateSectionOpen, setIsUpdateSectionOpen] = useState(false);
-  const [isSectionActionsOpen, setIsSectionActionsOpen] = useState(false);
-  const [sectionError, setSectionError] = useState("");
-  const [sectionSaving, setSectionSaving] = useState(false);
-  const [taskForm, setTaskForm] = useState(initialTaskForm);
-  const [taskError, setTaskError] = useState("");
-  const [taskSaving, setTaskSaving] = useState(false);
-  const [isTaskCreatorOpen, setIsTaskCreatorOpen] = useState(false);
+  const [selectedSectionId, setSelectedSectionId] = useState(backlogSectionId);
+  const [sectionForm, setSectionForm] =
+    useState<SectionForm>(initialSectionForm);
+  const [sectionDraft, setSectionDraft] =
+    useState<SectionForm>(initialSectionForm);
+  const [taskForm, setTaskForm] = useState<TaskForm>(initialTaskForm);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editingTaskForm, setEditingTaskForm] = useState(initialTaskEditForm);
-  const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
+  const [editingTaskForm, setEditingTaskForm] =
+    useState<TaskEditForm>(initialTaskEditForm);
   const [noteFile, setNoteFile] = useState<File | null>(null);
-  const [noteUploadStatus, setNoteUploadStatus] = useState("");
+  const [noteUploadStatus, setNoteUploadStatus] = useState(
+    "No score uploaded yet",
+  );
+  const [lastSavedNote, setLastSavedNote] = useState<UploadedFile | null>(null);
   const [recordingStatus, setRecordingStatus] = useState("Idle");
   const [recordingUrl, setRecordingUrl] = useState("");
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [lastSavedRecording, setLastSavedRecording] =
     useState<UploadedFile | null>(null);
-  const [lastSavedNote, setLastSavedNote] = useState<UploadedFile | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<BlobPart[]>([]);
+  const [isCreateSectionOpen, setIsCreateSectionOpen] = useState(false);
+  const [isUpdateSectionOpen, setIsUpdateSectionOpen] = useState(false);
+  const [isTaskCreatorOpen, setIsTaskCreatorOpen] = useState(false);
+  const [isSectionActionsOpen, setIsSectionActionsOpen] = useState(false);
+  const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
+  const [sectionSaving, setSectionSaving] = useState(false);
+  const [taskSaving, setTaskSaving] = useState(false);
+  const [sectionError, setSectionError] = useState("");
+  const [taskError, setTaskError] = useState("");
+  const [roadmapStatus, setRoadmapStatus] = useState("Loading roadmap...");
+
   const sectionSummaryActionsRef = useRef<HTMLDivElement | null>(null);
   const taskCreatorRef = useRef<HTMLFormElement | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+
+  const loadRoadmap = async () => {
+    const response = await fetch(`${API_BASE}/api/roadmap`);
+    if (!response.ok) {
+      throw new Error(
+        await readErrorMessage(response, "Failed to load roadmap."),
+      );
+    }
+
+    const nextSections = (await response.json()) as PracticeSection[];
+    setSections(nextSections);
+    if (nextSections.length === 0) {
+      setSelectedSectionId(backlogSectionId);
+      return nextSections;
+    }
+
+    setSelectedSectionId((current) =>
+      nextSections.some((section) => section.id === current)
+        ? current
+        : nextSections[0].id,
+    );
+    return nextSections;
+  };
 
   useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
-      if (
-        sectionSummaryActionsRef.current &&
-        !sectionSummaryActionsRef.current.contains(event.target as Node)
-      ) {
-        setIsSectionActionsOpen(false);
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsSectionActionsOpen(false);
-      }
-    };
-
-    window.addEventListener("mousedown", handlePointerDown);
-    window.addEventListener("keydown", handleEscape);
-
-    return () => {
-      window.removeEventListener("mousedown", handlePointerDown);
-      window.removeEventListener("keydown", handleEscape);
-    };
+    loadRoadmap()
+      .then((nextSections) => {
+        const completeTasks = nextSections.reduce(
+          (total, section) => total + section.completedCount,
+          0,
+        );
+        const totalTasks = nextSections.reduce(
+          (total, section) => total + section.taskCount,
+          0,
+        );
+        setRoadmapStatus(
+          totalTasks === 0
+            ? "No tasks yet"
+            : `${completeTasks}/${totalTasks} complete`,
+        );
+      })
+      .catch((error) => {
+        setRoadmapStatus(
+          error instanceof Error ? error.message : "Unable to load roadmap.",
+        );
+      });
   }, []);
 
   const selectedSection = useMemo(
@@ -163,118 +108,39 @@ export default function App() {
   );
 
   const selectedTasks = selectedSection?.tasks ?? [];
-  const totalTasks = sections.reduce(
-    (sum, section) => sum + section.taskCount,
-    0,
-  );
-  const completedTasks = sections.reduce(
-    (sum, section) => sum + section.completedCount,
-    0,
-  );
-  const overallCompletion =
-    totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
-
-  useEffect(() => {
-    const loadRoadmap = async () => {
-      const response = await fetch(`${API_BASE}/api/roadmap`);
-      if (!response.ok) {
-        throw new Error("Unable to load roadmap.");
-      }
-
-      const data = (await response.json()) as PracticeSection[];
-      setSections(data);
-      setSelectedSectionId((current) =>
-        current && data.some((section) => section.id === current)
-          ? current
-          : (data[0]?.id ?? ""),
-      );
-    };
-
-    loadRoadmap().catch(() =>
-      setSectionError("Unable to load roadmap right now."),
-    );
-  }, []);
-
-  useEffect(() => {
-    if (!selectedSection) {
-      setSectionDraft(initialSectionForm);
-      setTaskForm(initialTaskForm);
-      setIsTaskCreatorOpen(false);
-      setEditingTaskId(null);
-      setEditingTaskForm(initialTaskEditForm);
-      setIsUpdateSectionOpen(false);
-      return;
+  const overallCompletion = useMemo(() => {
+    if (sections.length === 0) {
+      return 0;
     }
 
-    setSectionDraft({
-      name: selectedSection.name,
-      description: selectedSection.description,
-    });
-    setTaskForm(initialTaskForm);
-    setIsTaskCreatorOpen(false);
-    setEditingTaskId(null);
-    setEditingTaskForm(initialTaskEditForm);
-    setIsUpdateSectionOpen(false);
-  }, [
-    selectedSection?.id,
-    selectedSection?.name,
-    selectedSection?.description,
-  ]);
+    const completeTasks = sections.reduce(
+      (total, section) => total + section.completedCount,
+      0,
+    );
+    const totalTasks = sections.reduce(
+      (total, section) => total + section.taskCount,
+      0,
+    );
+    return totalTasks === 0
+      ? 0
+      : Math.round((completeTasks / totalTasks) * 100);
+  }, [sections]);
 
   const refreshRoadmap = async () => {
-    setIsUpdateSectionOpen(false);
-    const response = await fetch(`${API_BASE}/api/roadmap`);
-    if (!response.ok) {
-      throw new Error("Unable to load roadmap.");
-    }
-
-    const data = (await response.json()) as PracticeSection[];
-    setSections(data);
-    setSelectedSectionId((current) =>
-      current && data.some((section) => section.id === current)
-        ? current
-        : (data[0]?.id ?? ""),
+    const nextSections = await loadRoadmap();
+    const completeTasks = nextSections.reduce(
+      (total, section) => total + section.completedCount,
+      0,
     );
-  };
-
-  const reorderSections = async (draggedId: string, targetId: string) => {
-    if (draggedId === targetId) {
-      return;
-    }
-
-    const draggedIndex = sections.findIndex(
-      (section) => section.id === draggedId,
+    const totalTasks = nextSections.reduce(
+      (total, section) => total + section.taskCount,
+      0,
     );
-    const targetIndex = sections.findIndex(
-      (section) => section.id === targetId,
+    setRoadmapStatus(
+      totalTasks === 0
+        ? "No tasks yet"
+        : `${completeTasks}/${totalTasks} complete`,
     );
-    if (draggedIndex === -1 || targetIndex === -1) {
-      return;
-    }
-
-    const nextSections = [...sections];
-    const [movedSection] = nextSections.splice(draggedIndex, 1);
-    nextSections.splice(targetIndex, 0, movedSection);
-
-    setSections(nextSections);
-
-    const response = await fetch(`${API_BASE}/api/sections/reorder`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sectionIds: nextSections.map((section) => section.id),
-      }),
-    });
-
-    if (!response.ok) {
-      await refreshRoadmap();
-      throw new Error(
-        await readErrorMessage(response, "Unable to reorder sections."),
-      );
-    }
-
-    const updatedSections = (await response.json()) as PracticeSection[];
-    setSections(updatedSections);
   };
 
   const createSection = async (event: FormEvent<HTMLFormElement>) => {
@@ -295,9 +161,7 @@ export default function App() {
         );
       }
 
-      const created = (await response.json()) as PracticeSection;
       setSectionForm(initialSectionForm);
-      setSelectedSectionId(created.id);
       setIsCreateSectionOpen(false);
       await refreshRoadmap();
     } catch (error) {
@@ -334,6 +198,7 @@ export default function App() {
         );
       }
 
+      setIsUpdateSectionOpen(false);
       await refreshRoadmap();
     } catch (error) {
       setSectionError(
@@ -344,8 +209,38 @@ export default function App() {
     }
   };
 
+  const reorderSections = async (draggedId: string, targetId: string) => {
+    const nextSectionIds = sections.map((section) => section.id);
+    const draggedIndex = nextSectionIds.indexOf(draggedId);
+    const targetIndex = nextSectionIds.indexOf(targetId);
+    if (
+      draggedIndex === -1 ||
+      targetIndex === -1 ||
+      draggedIndex === targetIndex
+    ) {
+      return;
+    }
+
+    nextSectionIds.splice(draggedIndex, 1);
+    nextSectionIds.splice(targetIndex, 0, draggedId);
+
+    const response = await fetch(`${API_BASE}/api/sections/reorder`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sectionIds: nextSectionIds }),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        await readErrorMessage(response, "Unable to reorder sections."),
+      );
+    }
+
+    await refreshRoadmap();
+  };
+
   const removeSection = async () => {
-    if (!selectedSection) {
+    if (!selectedSection || selectedSection.id === backlogSectionId) {
       return;
     }
 
@@ -356,20 +251,20 @@ export default function App() {
       },
     );
 
-    if (!response.ok) {
-      setSectionError(
+    if (!response.ok && response.status !== 204) {
+      throw new Error(
         await readErrorMessage(response, "Unable to delete section."),
       );
-      return;
     }
 
+    setEditingTaskId(null);
+    setEditingTaskForm(initialTaskEditForm);
     await refreshRoadmap();
   };
 
   const createTask = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedSection) {
-      setTaskError("Create a section first.");
       return;
     }
 
@@ -380,24 +275,21 @@ export default function App() {
       const response = await fetch(`${API_BASE}/api/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sectionId: selectedSection.id,
-          ...taskForm,
-          deadline: taskForm.deadline || null,
-        }),
+        body: JSON.stringify({ ...taskForm, sectionId: selectedSection.id }),
       });
 
       if (!response.ok) {
         throw new Error(
-          await readErrorMessage(response, "Unable to save task."),
+          await readErrorMessage(response, "Unable to create task."),
         );
       }
 
       setTaskForm(initialTaskForm);
+      setIsTaskCreatorOpen(false);
       await refreshRoadmap();
     } catch (error) {
       setTaskError(
-        error instanceof Error ? error.message : "Unable to save task.",
+        error instanceof Error ? error.message : "Unable to create task.",
       );
     } finally {
       setTaskSaving(false);
@@ -422,10 +314,7 @@ export default function App() {
       const response = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...editingTaskForm,
-          deadline: editingTaskForm.deadline || null,
-        }),
+        body: JSON.stringify(editingTaskForm),
       });
 
       if (!response.ok) {
@@ -447,78 +336,92 @@ export default function App() {
   };
 
   const toggleTaskCompletion = async (task: PracticeTask) => {
-    await fetch(`${API_BASE}/api/tasks/${task.id}`, {
+    const response = await fetch(`${API_BASE}/api/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isCompleted: !task.isCompleted }),
     });
+
+    if (!response.ok) {
+      throw new Error(
+        await readErrorMessage(response, "Unable to update task."),
+      );
+    }
+
     await refreshRoadmap();
   };
 
   const removeTask = async (taskId: string) => {
-    await fetch(`${API_BASE}/api/tasks/${taskId}`, { method: "DELETE" });
+    const response = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok && response.status !== 204) {
+      throw new Error(
+        await readErrorMessage(response, "Unable to delete task."),
+      );
+    }
+
+    if (editingTaskId === taskId) {
+      setEditingTaskId(null);
+      setEditingTaskForm(initialTaskEditForm);
+    }
+
     await refreshRoadmap();
   };
 
   const uploadNote = async () => {
     if (!noteFile) {
-      setNoteUploadStatus("Choose a PDF first.");
+      setNoteUploadStatus("Choose a PDF file first.");
       return;
     }
 
     const formData = new FormData();
     formData.append("file", noteFile);
-
     const response = await fetch(`${API_BASE}/api/uploads/pdf`, {
       method: "POST",
       body: formData,
     });
 
     if (!response.ok) {
-      throw new Error(
-        await readErrorMessage(response, "Unable to upload PDF."),
-      );
+      throw new Error(await readErrorMessage(response, "Upload failed."));
     }
 
-    const uploaded = (await response.json()) as UploadedFile;
-    setLastSavedNote(uploaded);
-    setNoteUploadStatus(`Uploaded ${uploaded.originalName}.`);
+    const saved = (await response.json()) as UploadedFile;
+    setLastSavedNote(saved);
+    setNoteUploadStatus(`Uploaded ${saved.originalName}`);
     setNoteFile(null);
   };
 
   const startRecording = async () => {
-    setRecordingStatus("Requesting microphone access...");
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
-    audioChunksRef.current = [];
+    mediaStreamRef.current = stream;
+    recordingChunksRef.current = [];
 
+    const recorder = new MediaRecorder(stream);
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
-        audioChunksRef.current.push(event.data);
+        recordingChunksRef.current.push(event.data);
       }
     };
-
     recorder.onstop = () => {
-      const blob = new Blob(audioChunksRef.current, {
-        type: recorder.mimeType || "audio/webm",
-      });
-      const blobUrl = URL.createObjectURL(blob);
+      const blob = new Blob(recordingChunksRef.current, { type: "audio/webm" });
       setRecordedBlob(blob);
-      setRecordingUrl(blobUrl);
-      setRecordingStatus("Recording ready to save.");
-      stream.getTracks().forEach((track) => track.stop());
+      setRecordingUrl(URL.createObjectURL(blob));
+      setRecordingStatus("Recording ready to save");
+      setIsRecording(false);
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
     };
 
+    recorderRef.current = recorder;
     recorder.start();
-    mediaRecorderRef.current = recorder;
     setIsRecording(true);
-    setRecordingStatus("Recording live...");
+    setRecordingStatus("Recording...");
   };
 
   const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    mediaRecorderRef.current = null;
-    setIsRecording(false);
+    recorderRef.current?.stop();
   };
 
   const saveRecording = async () => {
@@ -527,30 +430,33 @@ export default function App() {
       return;
     }
 
-    const extension = recordedBlob.type.includes("webm") ? "webm" : "dat";
-    const file = new File([recordedBlob], `practice-recording.${extension}`, {
-      type: recordedBlob.type || "audio/webm",
-    });
     const formData = new FormData();
-    formData.append("file", file);
-
+    formData.append("file", recordedBlob, "practice-recording.webm");
     const response = await fetch(`${API_BASE}/api/uploads/recording`, {
       method: "POST",
       body: formData,
     });
 
     if (!response.ok) {
-      throw new Error(
-        await readErrorMessage(response, "Unable to save recording."),
-      );
+      throw new Error(await readErrorMessage(response, "Save failed."));
     }
 
-    const uploaded = (await response.json()) as UploadedFile;
-    setLastSavedRecording(uploaded);
-    setRecordingStatus(`Saved ${uploaded.originalName}.`);
+    const saved = (await response.json()) as UploadedFile;
+    setLastSavedRecording(saved);
+    setRecordingStatus(`Saved ${saved.originalName}`);
   };
 
-  const roadmapStatus = `${sections.length} section${sections.length === 1 ? "" : "s"} · ${completedTasks}/${totalTasks} tasks complete`;
+  useEffect(() => {
+    if (!selectedSection) {
+      setSectionDraft(initialSectionForm);
+      return;
+    }
+
+    setSectionDraft({
+      name: selectedSection.name,
+      description: selectedSection.description,
+    });
+  }, [selectedSection]);
 
   return (
     <main className="app-shell">
@@ -574,577 +480,66 @@ export default function App() {
         </div>
       </section>
 
-      <section className="panel panel-wide roadmap-panel">
-        <div className="panel-header">
-          <div>
-            <h2>Practice roadmap</h2>
-            <p className="panel-subtitle">
-              Sections show finish percentage from completed tasks.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="primary section-create-toggle"
-            onClick={() => setIsCreateSectionOpen((current) => !current)}
-            aria-expanded={isCreateSectionOpen}
-            aria-controls="section-create-form"
-          >
-            {isCreateSectionOpen
-              ? "Hide new section form"
-              : "Create new section"}
-          </button>
-        </div>
+      <PracticeRoadmap
+        sections={sections}
+        selectedSectionId={selectedSectionId}
+        setSelectedSectionId={setSelectedSectionId}
+        selectedSection={selectedSection}
+        selectedTasks={selectedTasks}
+        sectionForm={sectionForm}
+        setSectionForm={setSectionForm}
+        sectionDraft={sectionDraft}
+        setSectionDraft={setSectionDraft}
+        isCreateSectionOpen={isCreateSectionOpen}
+        setIsCreateSectionOpen={setIsCreateSectionOpen}
+        isUpdateSectionOpen={isUpdateSectionOpen}
+        setIsUpdateSectionOpen={setIsUpdateSectionOpen}
+        isSectionActionsOpen={isSectionActionsOpen}
+        setIsSectionActionsOpen={setIsSectionActionsOpen}
+        sectionError={sectionError}
+        sectionSaving={sectionSaving}
+        taskForm={taskForm}
+        setTaskForm={setTaskForm}
+        taskError={taskError}
+        taskSaving={taskSaving}
+        isTaskCreatorOpen={isTaskCreatorOpen}
+        setIsTaskCreatorOpen={setIsTaskCreatorOpen}
+        editingTaskId={editingTaskId}
+        editingTaskForm={editingTaskForm}
+        setEditingTaskId={setEditingTaskId}
+        setEditingTaskForm={setEditingTaskForm}
+        draggedSectionId={draggedSectionId}
+        setDraggedSectionId={setDraggedSectionId}
+        sectionSummaryActionsRef={sectionSummaryActionsRef}
+        taskCreatorRef={taskCreatorRef}
+        onCreateSection={createSection}
+        onUpdateSection={updateSection}
+        onReorderSections={reorderSections}
+        onRemoveSection={removeSection}
+        onCreateTask={createTask}
+        onBeginTaskEdit={beginTaskEdit}
+        onSaveTaskEdit={saveTaskEdit}
+        onToggleTaskCompletion={toggleTaskCompletion}
+        onRemoveTask={removeTask}
+      />
 
-        {isCreateSectionOpen ? (
-          <form
-            id="section-create-form"
-            className="stack section-create-form section-create-banner"
-            onSubmit={createSection}
-          >
-            <label>
-              New section name
-              <input
-                value={sectionForm.name}
-                onChange={(event) =>
-                  setSectionForm((current) => ({
-                    ...current,
-                    name: event.target.value,
-                  }))
-                }
-                placeholder="Foundation, Rehearsal, Release"
-                required
-              />
-            </label>
-            <label>
-              Section description
-              <textarea
-                value={sectionForm.description}
-                onChange={(event) =>
-                  setSectionForm((current) => ({
-                    ...current,
-                    description: event.target.value,
-                  }))
-                }
-                placeholder="What this planning stage needs to accomplish"
-                rows={3}
-              />
-            </label>
-            {sectionError ? (
-              <p className="status error">{sectionError}</p>
-            ) : null}
-            <button type="submit" className="primary" disabled={sectionSaving}>
-              {sectionSaving ? "Saving..." : "Create section"}
-            </button>
-          </form>
-        ) : null}
-
-        <div className="roadmap-layout">
-          <aside className="roadmap-sidebar">
-            <div className="section-list">
-              {sections.map((section) => (
-                <button
-                  key={section.id}
-                  type="button"
-                  className={`section-card ${
-                    section.id === selectedSectionId
-                      ? "section-card-active"
-                      : ""
-                  } ${draggedSectionId === section.id ? "section-card-dragging" : ""}`}
-                  onClick={() => setSelectedSectionId(section.id)}
-                  draggable
-                  onDragStart={() => setDraggedSectionId(section.id)}
-                  onDragEnd={() => setDraggedSectionId(null)}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => {
-                    if (!draggedSectionId || draggedSectionId === section.id) {
-                      setDraggedSectionId(null);
-                      return;
-                    }
-
-                    reorderSections(draggedSectionId, section.id).catch(() =>
-                      setSectionError("Unable to reorder sections."),
-                    );
-                    setDraggedSectionId(null);
-                  }}
-                >
-                  <div className="section-card-header">
-                    <strong>{section.name}</strong>
-                    <span>{section.completionPercent}%</span>
-                  </div>
-                  <p>{section.description || "No description yet."}</p>
-                  <div className="progress-bar">
-                    <span style={{ width: `${section.completionPercent}%` }} />
-                  </div>
-                  <small>
-                    {section.completedCount}/{section.taskCount} tasks complete
-                  </small>
-                </button>
-              ))}
-            </div>
-          </aside>
-
-          <div className="roadmap-workspace">
-            {selectedSection ? (
-              <>
-                <div className="section-summary">
-                  <div>
-                    <h3>{selectedSection.name}</h3>
-                    <p>
-                      {selectedSection.description ||
-                        "No section description yet."}
-                    </p>
-                  </div>
-                  <div className="summary-metrics">
-                    <strong>{selectedSection.completionPercent}%</strong>
-                    <span>complete</span>
-                    <small>
-                      {selectedSection.completedCount}/
-                      {selectedSection.taskCount} tasks
-                    </small>
-                  </div>
-                  <div
-                    className="section-summary-actions"
-                    ref={sectionSummaryActionsRef}
-                  >
-                    <button
-                      type="button"
-                      className="section-detail-toggle"
-                      onClick={() =>
-                        setIsSectionActionsOpen((current) => !current)
-                      }
-                      aria-expanded={isSectionActionsOpen}
-                      aria-controls="section-actions-menu"
-                      aria-haspopup="menu"
-                    >
-                      ⋮
-                    </button>
-                    {isSectionActionsOpen ? (
-                      <div
-                        id="section-actions-menu"
-                        className="section-actions-menu"
-                        role="menu"
-                      >
-                        <button
-                          type="button"
-                          className="section-action-item"
-                          onClick={() => {
-                            setIsTaskCreatorOpen((current) => !current);
-                            if (!isTaskCreatorOpen) {
-                              requestAnimationFrame(() => {
-                                taskCreatorRef.current?.scrollIntoView({
-                                  behavior: "smooth",
-                                  block: "start",
-                                });
-                                taskCreatorRef.current
-                                  ?.querySelector<HTMLInputElement>(
-                                    'input[name="task-title"]',
-                                  )
-                                  ?.focus();
-                              });
-                            }
-                            setIsSectionActionsOpen(false);
-                          }}
-                        >
-                          {isTaskCreatorOpen
-                            ? "Hide new task card"
-                            : "Create new task"}
-                        </button>
-                        <button
-                          type="button"
-                          className="section-action-item"
-                          onClick={() => {
-                            setIsUpdateSectionOpen(true);
-                            setIsSectionActionsOpen(false);
-                          }}
-                        >
-                          Edit session
-                        </button>
-                        <button
-                          type="button"
-                          className="section-action-item danger"
-                          onClick={async () => {
-                            setIsSectionActionsOpen(false);
-                            await removeSection();
-                          }}
-                          disabled={selectedSection.id === backlogSectionId}
-                        >
-                          Delete session
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="section-summary-tasks">
-                    {isTaskCreatorOpen ? (
-                      <form
-                        className="stack task-creator"
-                        onSubmit={createTask}
-                        ref={taskCreatorRef}
-                      >
-                        <button
-                          type="button"
-                          className="section-editor-collapse"
-                          onClick={() => setIsTaskCreatorOpen(false)}
-                          aria-label="Hide add task card"
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                            focusable="false"
-                            className="section-editor-collapse-icon"
-                          >
-                            <path
-                              d="M6 14l6-6 6 6"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                        <h4>Add task</h4>
-                        <label>
-                          Task name
-                          <input
-                            name="task-title"
-                            value={taskForm.title}
-                            onChange={(event) =>
-                              setTaskForm((current) => ({
-                                ...current,
-                                title: event.target.value,
-                              }))
-                            }
-                            placeholder="Practice scales at 72 bpm"
-                            required
-                          />
-                        </label>
-                        <label>
-                          Description
-                          <textarea
-                            value={taskForm.details}
-                            onChange={(event) =>
-                              setTaskForm((current) => ({
-                                ...current,
-                                details: event.target.value,
-                              }))
-                            }
-                            placeholder="What to focus on and how to measure success"
-                            rows={3}
-                          />
-                        </label>
-                        <label>
-                          Deadline
-                          <input
-                            type="date"
-                            value={taskForm.deadline}
-                            onChange={(event) =>
-                              setTaskForm((current) => ({
-                                ...current,
-                                deadline: event.target.value,
-                              }))
-                            }
-                          />
-                        </label>
-                        {taskError ? (
-                          <p className="status error">{taskError}</p>
-                        ) : null}
-                        <button
-                          type="submit"
-                          className="primary"
-                          disabled={taskSaving}
-                        >
-                          {taskSaving ? "Saving..." : "Add task"}
-                        </button>
-                      </form>
-                    ) : selectedTasks.length === 0 ? (
-                      <button
-                        type="button"
-                        className="primary section-create-toggle task-create-empty-toggle"
-                        onClick={() => {
-                          setIsTaskCreatorOpen(true);
-                          requestAnimationFrame(() => {
-                            taskCreatorRef.current?.scrollIntoView({
-                              behavior: "smooth",
-                              block: "start",
-                            });
-                            taskCreatorRef.current
-                              ?.querySelector<HTMLInputElement>(
-                                'input[name="task-title"]',
-                              )
-                              ?.focus();
-                          });
-                        }}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className="task-create-empty-icon"
-                        >
-                          +
-                        </span>
-                        <span>add task</span>
-                      </button>
-                    ) : null}
-
-                    {selectedTasks.length > 0 ? (
-                      <div className="task-list">
-                        {selectedTasks.map((task) => (
-                          <article
-                            key={task.id}
-                            className="task-card task-card-column"
-                          >
-                            <div className="task-card-header">
-                              <label className="task-complete-toggle">
-                                <input
-                                  type="checkbox"
-                                  checked={task.isCompleted}
-                                  onChange={() =>
-                                    toggleTaskCompletion(task).catch(() =>
-                                      setTaskError("Unable to update task."),
-                                    )
-                                  }
-                                />
-                                <span>
-                                  {task.isCompleted ? "Done" : "Open"}
-                                </span>
-                              </label>
-                              <div className="task-actions">
-                                <button
-                                  type="button"
-                                  className="ghost"
-                                  onClick={() => beginTaskEdit(task)}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  className="ghost"
-                                  onClick={() => removeTask(task.id)}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-
-                            {editingTaskId === task.id ? (
-                              <div className="stack task-editor">
-                                <label>
-                                  Task name
-                                  <input
-                                    value={editingTaskForm.title}
-                                    onChange={(event) =>
-                                      setEditingTaskForm((current) => ({
-                                        ...current,
-                                        title: event.target.value,
-                                      }))
-                                    }
-                                  />
-                                </label>
-                                <label>
-                                  Description
-                                  <textarea
-                                    value={editingTaskForm.details}
-                                    onChange={(event) =>
-                                      setEditingTaskForm((current) => ({
-                                        ...current,
-                                        details: event.target.value,
-                                      }))
-                                    }
-                                    rows={3}
-                                  />
-                                </label>
-                                <label>
-                                  Deadline
-                                  <input
-                                    type="date"
-                                    value={editingTaskForm.deadline}
-                                    onChange={(event) =>
-                                      setEditingTaskForm((current) => ({
-                                        ...current,
-                                        deadline: event.target.value,
-                                      }))
-                                    }
-                                  />
-                                </label>
-                                <label className="task-status-toggle">
-                                  <input
-                                    type="checkbox"
-                                    checked={editingTaskForm.isCompleted}
-                                    onChange={(event) =>
-                                      setEditingTaskForm((current) => ({
-                                        ...current,
-                                        isCompleted: event.target.checked,
-                                      }))
-                                    }
-                                  />
-                                  <span>Mark as completed</span>
-                                </label>
-                                <div className="section-actions">
-                                  <button
-                                    type="button"
-                                    className="primary"
-                                    disabled={taskSaving}
-                                    onClick={() =>
-                                      saveTaskEdit(task.id).catch(() =>
-                                        setTaskError("Unable to update task."),
-                                      )
-                                    }
-                                  >
-                                    {taskSaving ? "Updating..." : "Save task"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="ghost"
-                                    onClick={() => {
-                                      setEditingTaskId(null);
-                                      setEditingTaskForm(initialTaskEditForm);
-                                    }}
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="task-card-body">
-                                <div>
-                                  <strong>{task.title}</strong>
-                                  <p>
-                                    {task.details || "No extra details added."}
-                                  </p>
-                                </div>
-                                <div className="task-meta">
-                                  <span>
-                                    Deadline: {formatDate(task.deadline)}
-                                  </span>
-                                  <span>
-                                    {task.isCompleted
-                                      ? `Completed ${formatTimestamp(task.completedAt ?? task.updatedAt)}`
-                                      : "Not completed"}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                          </article>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p className="empty-state">Create a section to start planning.</p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="grid secondary-grid">
-        <article className="panel">
-          <div className="panel-header">
-            <h2>Upload music notes</h2>
-            <span>PDF only</span>
-          </div>
-
-          <div className="stack">
-            <label className="file-picker">
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={(event) =>
-                  setNoteFile(event.target.files?.[0] ?? null)
-                }
-              />
-              <span>{noteFile ? noteFile.name : "Choose a PDF score"}</span>
-            </label>
-            <button
-              type="button"
-              className="primary"
-              onClick={() =>
-                uploadNote().catch((error) =>
-                  setNoteUploadStatus(
-                    error instanceof Error ? error.message : "Upload failed.",
-                  ),
-                )
-              }
-            >
-              Upload score
-            </button>
-            <p className="status">{noteUploadStatus}</p>
-            {lastSavedNote ? (
-              <a
-                className="file-link"
-                href={lastSavedNote.url}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open {lastSavedNote.originalName}
-              </a>
-            ) : null}
-          </div>
-        </article>
-
-        <article className="panel panel-wide recording-panel">
-          <div className="panel-header">
-            <h2>Sound recording</h2>
-            <span>{recordingStatus}</span>
-          </div>
-
-          <div className="controls">
-            <button
-              type="button"
-              className="primary"
-              onClick={() =>
-                startRecording().catch((error) =>
-                  setRecordingStatus(
-                    error instanceof Error
-                      ? error.message
-                      : "Microphone access failed.",
-                  ),
-                )
-              }
-              disabled={isRecording}
-            >
-              Start recording
-            </button>
-            <button
-              type="button"
-              className="ghost"
-              onClick={stopRecording}
-              disabled={!isRecording}
-            >
-              Stop
-            </button>
-            <button
-              type="button"
-              className="ghost"
-              onClick={() =>
-                saveRecording().catch((error) =>
-                  setRecordingStatus(
-                    error instanceof Error ? error.message : "Save failed.",
-                  ),
-                )
-              }
-              disabled={!recordedBlob}
-            >
-              Save recording
-            </button>
-          </div>
-
-          {recordingUrl ? (
-            <audio controls src={recordingUrl} className="audio-player" />
-          ) : null}
-          {lastSavedRecording ? (
-            <a
-              className="file-link"
-              href={lastSavedRecording.url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Open {lastSavedRecording.originalName}
-            </a>
-          ) : null}
-        </article>
-      </section>
+      <PracticeMediaPanels
+        noteFile={noteFile}
+        setNoteFile={setNoteFile}
+        noteUploadStatus={noteUploadStatus}
+        lastSavedNote={lastSavedNote}
+        recordingStatus={recordingStatus}
+        recordingUrl={recordingUrl}
+        recordedBlob={recordedBlob}
+        lastSavedRecording={lastSavedRecording}
+        isRecording={isRecording}
+        onUploadNote={uploadNote}
+        onStartRecording={startRecording}
+        onStopRecording={stopRecording}
+        onSaveRecording={saveRecording}
+      />
     </main>
   );
 }
+
+export default App;
