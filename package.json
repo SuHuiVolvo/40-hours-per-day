@@ -10,6 +10,8 @@
     "lint": "npm run lint --workspace @hoppy/web && npm run lint --workspace @hoppy/api"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "@tailwindcss/vite": "^4.3.0",
+    "concurrently": "^9.1.2",
+    "tailwindcss": "^4.3.0"
   }
 }

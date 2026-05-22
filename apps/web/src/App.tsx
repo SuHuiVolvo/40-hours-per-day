@@ -106,11 +106,15 @@ export default function App() {
   const [selectedSectionId, setSelectedSectionId] = useState("");
   const [sectionForm, setSectionForm] = useState(initialSectionForm);
   const [sectionDraft, setSectionDraft] = useState(initialSectionForm);
+  const [isCreateSectionOpen, setIsCreateSectionOpen] = useState(false);
+  const [isUpdateSectionOpen, setIsUpdateSectionOpen] = useState(false);
+  const [isSectionActionsOpen, setIsSectionActionsOpen] = useState(false);
   const [sectionError, setSectionError] = useState("");
   const [sectionSaving, setSectionSaving] = useState(false);
   const [taskForm, setTaskForm] = useState(initialTaskForm);
   const [taskError, setTaskError] = useState("");
   const [taskSaving, setTaskSaving] = useState(false);
+  const [isTaskCreatorOpen, setIsTaskCreatorOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskForm, setEditingTaskForm] = useState(initialTaskEditForm);
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
@@ -125,6 +129,33 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
+  const sectionSummaryActionsRef = useRef<HTMLDivElement | null>(null);
+  const taskCreatorRef = useRef<HTMLFormElement | null>(null);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        sectionSummaryActionsRef.current &&
+        !sectionSummaryActionsRef.current.contains(event.target as Node)
+      ) {
+        setIsSectionActionsOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsSectionActionsOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
 
   const selectedSection = useMemo(
     () => sections.find((section) => section.id === selectedSectionId) ?? null,
@@ -168,8 +199,10 @@ export default function App() {
     if (!selectedSection) {
       setSectionDraft(initialSectionForm);
       setTaskForm(initialTaskForm);
+      setIsTaskCreatorOpen(false);
       setEditingTaskId(null);
       setEditingTaskForm(initialTaskEditForm);
+      setIsUpdateSectionOpen(false);
       return;
     }
 
@@ -178,8 +211,10 @@ export default function App() {
       description: selectedSection.description,
     });
     setTaskForm(initialTaskForm);
+    setIsTaskCreatorOpen(false);
     setEditingTaskId(null);
     setEditingTaskForm(initialTaskEditForm);
+    setIsUpdateSectionOpen(false);
   }, [
     selectedSection?.id,
     selectedSection?.name,
@@ -187,6 +222,7 @@ export default function App() {
   ]);
 
   const refreshRoadmap = async () => {
+    setIsUpdateSectionOpen(false);
     const response = await fetch(`${API_BASE}/api/roadmap`);
     if (!response.ok) {
       throw new Error("Unable to load roadmap.");
@@ -262,6 +298,7 @@ export default function App() {
       const created = (await response.json()) as PracticeSection;
       setSectionForm(initialSectionForm);
       setSelectedSectionId(created.id);
+      setIsCreateSectionOpen(false);
       await refreshRoadmap();
     } catch (error) {
       setSectionError(
@@ -520,11 +557,8 @@ export default function App() {
       <section className="hero">
         <div>
           <p className="eyebrow">Hoppy Practice Studio</p>
-          <h1>Plan practice like a project roadmap.</h1>
-          <p className="lede">
-            Create sections for each phase of your work, keep tasks manageable,
-            and track completion like a software delivery board.
-          </p>
+          <h1>40 Hours, No Excuses</h1>
+          <p className="lede">Have You Practiced Today?</p>
         </div>
         <div className="hero-card">
           <span>{roadmapStatus}</span>
@@ -548,56 +582,64 @@ export default function App() {
               Sections show finish percentage from completed tasks.
             </p>
           </div>
-          <span>
-            {selectedSection
-              ? `${selectedSection.taskCount} tasks in focus`
-              : "No section selected"}
-          </span>
+          <button
+            type="button"
+            className="primary section-create-toggle"
+            onClick={() => setIsCreateSectionOpen((current) => !current)}
+            aria-expanded={isCreateSectionOpen}
+            aria-controls="section-create-form"
+          >
+            {isCreateSectionOpen
+              ? "Hide new section form"
+              : "Create new section"}
+          </button>
         </div>
+
+        {isCreateSectionOpen ? (
+          <form
+            id="section-create-form"
+            className="stack section-create-form section-create-banner"
+            onSubmit={createSection}
+          >
+            <label>
+              New section name
+              <input
+                value={sectionForm.name}
+                onChange={(event) =>
+                  setSectionForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                placeholder="Foundation, Rehearsal, Release"
+                required
+              />
+            </label>
+            <label>
+              Section description
+              <textarea
+                value={sectionForm.description}
+                onChange={(event) =>
+                  setSectionForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                placeholder="What this planning stage needs to accomplish"
+                rows={3}
+              />
+            </label>
+            {sectionError ? (
+              <p className="status error">{sectionError}</p>
+            ) : null}
+            <button type="submit" className="primary" disabled={sectionSaving}>
+              {sectionSaving ? "Saving..." : "Create section"}
+            </button>
+          </form>
+        ) : null}
 
         <div className="roadmap-layout">
           <aside className="roadmap-sidebar">
-            <form className="stack" onSubmit={createSection}>
-              <label>
-                New section name
-                <input
-                  value={sectionForm.name}
-                  onChange={(event) =>
-                    setSectionForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                  placeholder="Foundation, Rehearsal, Release"
-                  required
-                />
-              </label>
-              <label>
-                Section description
-                <textarea
-                  value={sectionForm.description}
-                  onChange={(event) =>
-                    setSectionForm((current) => ({
-                      ...current,
-                      description: event.target.value,
-                    }))
-                  }
-                  placeholder="What this planning stage needs to accomplish"
-                  rows={3}
-                />
-              </label>
-              {sectionError ? (
-                <p className="status error">{sectionError}</p>
-              ) : null}
-              <button
-                type="submit"
-                className="primary"
-                disabled={sectionSaving}
-              >
-                {sectionSaving ? "Saving..." : "Create section"}
-              </button>
-            </form>
-
             <div className="section-list">
               {sections.map((section) => (
                 <button
@@ -660,112 +702,240 @@ export default function App() {
                       {selectedSection.taskCount} tasks
                     </small>
                   </div>
+                  <div
+                    className="section-summary-actions"
+                    ref={sectionSummaryActionsRef}
+                  >
+                    <button
+                      type="button"
+                      className="section-detail-toggle"
+                      onClick={() =>
+                        setIsSectionActionsOpen((current) => !current)
+                      }
+                      aria-expanded={isSectionActionsOpen}
+                      aria-controls="section-actions-menu"
+                      aria-haspopup="menu"
+                    >
+                      ⋮
+                    </button>
+                    {isSectionActionsOpen ? (
+                      <div
+                        id="section-actions-menu"
+                        className="section-actions-menu"
+                        role="menu"
+                      >
+                        <button
+                          type="button"
+                          className="section-action-item"
+                          onClick={() => {
+                            setIsTaskCreatorOpen((current) => !current);
+                            if (!isTaskCreatorOpen) {
+                              requestAnimationFrame(() => {
+                                taskCreatorRef.current?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "start",
+                                });
+                                taskCreatorRef.current
+                                  ?.querySelector<HTMLInputElement>(
+                                    'input[name="task-title"]',
+                                  )
+                                  ?.focus();
+                              });
+                            }
+                            setIsSectionActionsOpen(false);
+                          }}
+                        >
+                          {isTaskCreatorOpen
+                            ? "Hide new task card"
+                            : "Create new task"}
+                        </button>
+                        <button
+                          type="button"
+                          className="section-action-item"
+                          onClick={() => {
+                            setIsUpdateSectionOpen(true);
+                            setIsSectionActionsOpen(false);
+                          }}
+                        >
+                          Edit session
+                        </button>
+                        <button
+                          type="button"
+                          className="section-action-item danger"
+                          onClick={async () => {
+                            setIsSectionActionsOpen(false);
+                            await removeSection();
+                          }}
+                          disabled={selectedSection.id === backlogSectionId}
+                        >
+                          Delete session
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
 
-                <form className="stack section-editor" onSubmit={updateSection}>
-                  <label>
-                    Section name
-                    <input
-                      value={sectionDraft.name}
-                      onChange={(event) =>
-                        setSectionDraft((current) => ({
-                          ...current,
-                          name: event.target.value,
-                        }))
-                      }
-                      required
-                    />
-                  </label>
-                  <label>
-                    Section description
-                    <textarea
-                      value={sectionDraft.description}
-                      onChange={(event) =>
-                        setSectionDraft((current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }))
-                      }
-                      rows={3}
-                    />
-                  </label>
-                  <div className="section-actions">
+                {isUpdateSectionOpen ? (
+                  <form
+                    id="section-update-form"
+                    className="stack section-editor"
+                    onSubmit={updateSection}
+                  >
+                    <button
+                      type="button"
+                      className="section-editor-collapse"
+                      onClick={() => setIsUpdateSectionOpen(false)}
+                      aria-label="Hide edit session card"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                        focusable="false"
+                        className="section-editor-collapse-icon"
+                      >
+                        <path
+                          d="M6 14l6-6 6 6"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                    <label>
+                      Section name
+                      <input
+                        value={sectionDraft.name}
+                        onChange={(event) =>
+                          setSectionDraft((current) => ({
+                            ...current,
+                            name: event.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </label>
+                    <label>
+                      Section description
+                      <textarea
+                        value={sectionDraft.description}
+                        onChange={(event) =>
+                          setSectionDraft((current) => ({
+                            ...current,
+                            description: event.target.value,
+                          }))
+                        }
+                        rows={3}
+                      />
+                    </label>
+                    <div className="section-actions">
+                      <button
+                        type="submit"
+                        className="primary"
+                        disabled={sectionSaving}
+                      >
+                        {sectionSaving ? "Updating..." : "Update section"}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() =>
+                          removeSection().catch(() =>
+                            setSectionError("Unable to delete section."),
+                          )
+                        }
+                        disabled={selectedSection.id === backlogSectionId}
+                      >
+                        Delete section
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
+
+                {isTaskCreatorOpen ? (
+                  <form
+                    className="stack task-creator"
+                    onSubmit={createTask}
+                    ref={taskCreatorRef}
+                  >
+                    <button
+                      type="button"
+                      className="section-editor-collapse"
+                      onClick={() => setIsTaskCreatorOpen(false)}
+                      aria-label="Hide add task card"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                        focusable="false"
+                        className="section-editor-collapse-icon"
+                      >
+                        <path
+                          d="M6 14l6-6 6 6"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                    <h4>Add task</h4>
+                    <label>
+                      Task name
+                      <input
+                        name="task-title"
+                        value={taskForm.title}
+                        onChange={(event) =>
+                          setTaskForm((current) => ({
+                            ...current,
+                            title: event.target.value,
+                          }))
+                        }
+                        placeholder="Practice scales at 72 bpm"
+                        required
+                      />
+                    </label>
+                    <label>
+                      Description
+                      <textarea
+                        value={taskForm.details}
+                        onChange={(event) =>
+                          setTaskForm((current) => ({
+                            ...current,
+                            details: event.target.value,
+                          }))
+                        }
+                        placeholder="What to focus on and how to measure success"
+                        rows={3}
+                      />
+                    </label>
+                    <label>
+                      Deadline
+                      <input
+                        type="date"
+                        value={taskForm.deadline}
+                        onChange={(event) =>
+                          setTaskForm((current) => ({
+                            ...current,
+                            deadline: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    {taskError ? (
+                      <p className="status error">{taskError}</p>
+                    ) : null}
                     <button
                       type="submit"
                       className="primary"
-                      disabled={sectionSaving}
+                      disabled={taskSaving}
                     >
-                      {sectionSaving ? "Updating..." : "Update section"}
+                      {taskSaving ? "Saving..." : "Add task"}
                     </button>
-                    <button
-                      type="button"
-                      className="ghost"
-                      onClick={() =>
-                        removeSection().catch(() =>
-                          setSectionError("Unable to delete section."),
-                        )
-                      }
-                      disabled={selectedSection.id === backlogSectionId}
-                    >
-                      Delete section
-                    </button>
-                  </div>
-                </form>
-
-                <form className="stack task-creator" onSubmit={createTask}>
-                  <h4>Add task</h4>
-                  <label>
-                    Task name
-                    <input
-                      value={taskForm.title}
-                      onChange={(event) =>
-                        setTaskForm((current) => ({
-                          ...current,
-                          title: event.target.value,
-                        }))
-                      }
-                      placeholder="Practice scales at 72 bpm"
-                      required
-                    />
-                  </label>
-                  <label>
-                    Description
-                    <textarea
-                      value={taskForm.details}
-                      onChange={(event) =>
-                        setTaskForm((current) => ({
-                          ...current,
-                          details: event.target.value,
-                        }))
-                      }
-                      placeholder="What to focus on and how to measure success"
-                      rows={3}
-                    />
-                  </label>
-                  <label>
-                    Deadline
-                    <input
-                      type="date"
-                      value={taskForm.deadline}
-                      onChange={(event) =>
-                        setTaskForm((current) => ({
-                          ...current,
-                          deadline: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  {taskError ? (
-                    <p className="status error">{taskError}</p>
-                  ) : null}
-                  <button
-                    type="submit"
-                    className="primary"
-                    disabled={taskSaving}
-                  >
-                    {taskSaving ? "Saving..." : "Add task"}
-                  </button>
-                </form>
+                  </form>
+                ) : null}
 
                 <div className="task-list">
                   {selectedTasks.map((task) => (
@@ -900,12 +1070,6 @@ export default function App() {
                       )}
                     </article>
                   ))}
-
-                  {selectedTasks.length === 0 ? (
-                    <p className="empty-state">
-                      Add the first task to start the roadmap.
-                    </p>
-                  ) : null}
                 </div>
               </>
             ) : (
