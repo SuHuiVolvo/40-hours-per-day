@@ -1,0 +1,9 @@
+node_modules
+/dist
+/apps/*/dist
+/apps/*/.vite
+.env
+.env.*
+.DS_Store
+coverage
+*.log

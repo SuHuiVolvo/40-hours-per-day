@@ -1,0 +1,15 @@
+{
+  "name": "hoppy",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev --workspace @hoppy/web\" \"npm run dev --workspace @hoppy/api\"",
+    "build": "npm run build --workspace @hoppy/web && npm run build --workspace @hoppy/api",
+    "lint": "npm run lint --workspace @hoppy/web && npm run lint --workspace @hoppy/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
