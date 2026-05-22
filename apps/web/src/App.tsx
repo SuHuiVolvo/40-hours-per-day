@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { PracticeMediaPanels } from "./components/PracticeMediaPanels";
 import { PracticeRoadmap } from "./components/PracticeRoadmap";
+import { TopNavigation, type AppPage } from "./components/TopNavigation";
 import {
   API_BASE,
   backlogSectionId,
@@ -19,6 +20,7 @@ import {
 function App() {
   const [sections, setSections] = useState<PracticeSection[]>([]);
   const [selectedSectionId, setSelectedSectionId] = useState(backlogSectionId);
+  const [activePage, setActivePage] = useState<AppPage>("roadmap");
   const [sectionForm, setSectionForm] =
     useState<SectionForm>(initialSectionForm);
   const [sectionDraft, setSectionDraft] =
@@ -58,6 +60,17 @@ function App() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
 
+  const readPageFromHash = (): AppPage => {
+    if (typeof window === "undefined") {
+      return "roadmap";
+    }
+
+    const page = window.location.hash.replace("#", "") as AppPage;
+    return page === "daily" || page === "roadmap" || page === "notes"
+      ? page
+      : "roadmap";
+  };
+
   const loadRoadmap = async () => {
     const response = await fetch(`${API_BASE}/api/roadmap`);
     if (!response.ok) {
@@ -80,6 +93,23 @@ function App() {
     );
     return nextSections;
   };
+
+  useEffect(() => {
+    const syncPage = () => setActivePage(readPageFromHash());
+
+    if (typeof window !== "undefined") {
+      if (!window.location.hash) {
+        window.history.replaceState(null, "", "#roadmap");
+      }
+
+      syncPage();
+      window.addEventListener("hashchange", syncPage);
+    }
+
+    return () => {
+      window.removeEventListener("hashchange", syncPage);
+    };
+  }, []);
 
   useEffect(() => {
     loadRoadmap()
@@ -600,92 +630,139 @@ function App() {
     });
   }, [selectedSection]);
 
+  const renderPage = () => {
+    if (activePage === "daily") {
+      return (
+        <section className="page-stack">
+          <section className="panel page-panel">
+            <div className="panel-header">
+              <div>
+                <h2>Daily task</h2>
+                <p className="panel-subtitle">
+                  Your focused task for today will live here.
+                </p>
+              </div>
+            </div>
+            <p className="empty-state">
+              This page is ready for daily planning content.
+            </p>
+          </section>
+        </section>
+      );
+    }
+
+    if (activePage === "notes") {
+      return (
+        <section className="page-stack">
+          <section className="panel page-panel">
+            <div className="panel-header">
+              <div>
+                <h2>Note library</h2>
+                <p className="panel-subtitle">
+                  Upload PDFs and save practice audio here.
+                </p>
+              </div>
+            </div>
+            <PracticeMediaPanels
+              noteFile={noteFile}
+              setNoteFile={setNoteFile}
+              noteUploadStatus={noteUploadStatus}
+              lastSavedNote={lastSavedNote}
+              recordingStatus={recordingStatus}
+              recordingUrl={recordingUrl}
+              recordedBlob={recordedBlob}
+              lastSavedRecording={lastSavedRecording}
+              isRecording={isRecording}
+              onUploadNote={uploadNote}
+              onStartRecording={startRecording}
+              onStopRecording={stopRecording}
+              onSaveRecording={saveRecording}
+            />
+          </section>
+        </section>
+      );
+    }
+
+    return (
+      <>
+        <section className="hero">
+          <div>
+            <p className="eyebrow">Hoppy Practice Studio</p>
+            <h1>40 Hours, No Excuses</h1>
+            <p className="lede">Have You Practiced Today?</p>
+          </div>
+          <div className="hero-card">
+            <span>{roadmapStatus}</span>
+            <strong>{overallCompletion}% roadmap complete</strong>
+            <small>
+              {lastSavedNote
+                ? "Latest score uploaded"
+                : "No score uploaded yet"}
+            </small>
+            <small>
+              {lastSavedRecording
+                ? "Latest recording saved"
+                : "No recording saved yet"}
+            </small>
+          </div>
+        </section>
+
+        <PracticeRoadmap
+          sections={sections}
+          selectedSectionId={selectedSectionId}
+          setSelectedSectionId={setSelectedSectionId}
+          selectedSection={selectedSection}
+          selectedTasks={selectedTasks}
+          sectionForm={sectionForm}
+          setSectionForm={setSectionForm}
+          sectionDraft={sectionDraft}
+          setSectionDraft={setSectionDraft}
+          isCreateSectionOpen={isCreateSectionOpen}
+          setIsCreateSectionOpen={setIsCreateSectionOpen}
+          isUpdateSectionOpen={isUpdateSectionOpen}
+          setIsUpdateSectionOpen={setIsUpdateSectionOpen}
+          isSectionActionsOpen={isSectionActionsOpen}
+          setIsSectionActionsOpen={setIsSectionActionsOpen}
+          sectionError={sectionError}
+          sectionSaving={sectionSaving}
+          sectionDeleting={sectionDeleting}
+          taskForm={taskForm}
+          setTaskForm={setTaskForm}
+          taskError={taskError}
+          taskSaving={taskSaving}
+          isTaskCreatorOpen={isTaskCreatorOpen}
+          setIsTaskCreatorOpen={setIsTaskCreatorOpen}
+          editingTaskId={editingTaskId}
+          editingTaskForm={editingTaskForm}
+          setEditingTaskId={setEditingTaskId}
+          setEditingTaskForm={setEditingTaskForm}
+          draggedSectionId={draggedSectionId}
+          setDraggedSectionId={setDraggedSectionId}
+          sectionSummaryActionsRef={sectionSummaryActionsRef}
+          taskCreatorRef={taskCreatorRef}
+          isDeleteSectionConfirmOpen={isDeleteSectionConfirmOpen}
+          setIsDeleteSectionConfirmOpen={setIsDeleteSectionConfirmOpen}
+          onCreateSection={createSection}
+          onUpdateSection={updateSection}
+          onReorderSections={reorderSections}
+          onRemoveSection={removeSection}
+          onCreateTask={createTask}
+          onBeginTaskEdit={beginTaskEdit}
+          onSaveTaskEdit={saveTaskEdit}
+          onToggleTaskCompletion={toggleTaskCompletion}
+          onRemoveTask={removeTask}
+          onDuplicateTask={duplicateTask}
+          onMoveTask={moveTask}
+          onArchiveTask={archiveTask}
+        />
+      </>
+    );
+  };
+
   return (
-    <main className="app-shell">
-      <section className="hero">
-        <div>
-          <p className="eyebrow">Hoppy Practice Studio</p>
-          <h1>40 Hours, No Excuses</h1>
-          <p className="lede">Have You Practiced Today?</p>
-        </div>
-        <div className="hero-card">
-          <span>{roadmapStatus}</span>
-          <strong>{overallCompletion}% roadmap complete</strong>
-          <small>
-            {lastSavedNote ? "Latest score uploaded" : "No score uploaded yet"}
-          </small>
-          <small>
-            {lastSavedRecording
-              ? "Latest recording saved"
-              : "No recording saved yet"}
-          </small>
-        </div>
-      </section>
-
-      <PracticeRoadmap
-        sections={sections}
-        selectedSectionId={selectedSectionId}
-        setSelectedSectionId={setSelectedSectionId}
-        selectedSection={selectedSection}
-        selectedTasks={selectedTasks}
-        sectionForm={sectionForm}
-        setSectionForm={setSectionForm}
-        sectionDraft={sectionDraft}
-        setSectionDraft={setSectionDraft}
-        isCreateSectionOpen={isCreateSectionOpen}
-        setIsCreateSectionOpen={setIsCreateSectionOpen}
-        isUpdateSectionOpen={isUpdateSectionOpen}
-        setIsUpdateSectionOpen={setIsUpdateSectionOpen}
-        isSectionActionsOpen={isSectionActionsOpen}
-        setIsSectionActionsOpen={setIsSectionActionsOpen}
-        sectionError={sectionError}
-        sectionSaving={sectionSaving}
-        sectionDeleting={sectionDeleting}
-        taskForm={taskForm}
-        setTaskForm={setTaskForm}
-        taskError={taskError}
-        taskSaving={taskSaving}
-        isTaskCreatorOpen={isTaskCreatorOpen}
-        setIsTaskCreatorOpen={setIsTaskCreatorOpen}
-        editingTaskId={editingTaskId}
-        editingTaskForm={editingTaskForm}
-        setEditingTaskId={setEditingTaskId}
-        setEditingTaskForm={setEditingTaskForm}
-        draggedSectionId={draggedSectionId}
-        setDraggedSectionId={setDraggedSectionId}
-        sectionSummaryActionsRef={sectionSummaryActionsRef}
-        taskCreatorRef={taskCreatorRef}
-        isDeleteSectionConfirmOpen={isDeleteSectionConfirmOpen}
-        setIsDeleteSectionConfirmOpen={setIsDeleteSectionConfirmOpen}
-        onCreateSection={createSection}
-        onUpdateSection={updateSection}
-        onReorderSections={reorderSections}
-        onRemoveSection={removeSection}
-        onCreateTask={createTask}
-        onBeginTaskEdit={beginTaskEdit}
-        onSaveTaskEdit={saveTaskEdit}
-        onToggleTaskCompletion={toggleTaskCompletion}
-        onRemoveTask={removeTask}
-        onDuplicateTask={duplicateTask}
-        onMoveTask={moveTask}
-        onArchiveTask={archiveTask}
-      />
-
-      <PracticeMediaPanels
-        noteFile={noteFile}
-        setNoteFile={setNoteFile}
-        noteUploadStatus={noteUploadStatus}
-        lastSavedNote={lastSavedNote}
-        recordingStatus={recordingStatus}
-        recordingUrl={recordingUrl}
-        recordedBlob={recordedBlob}
-        lastSavedRecording={lastSavedRecording}
-        isRecording={isRecording}
-        onUploadNote={uploadNote}
-        onStartRecording={startRecording}
-        onStopRecording={stopRecording}
-        onSaveRecording={saveRecording}
-      />
+    <main>
+      <TopNavigation activePage={activePage} />
+      <div className="app-shell">{renderPage()}</div>
     </main>
   );
 }

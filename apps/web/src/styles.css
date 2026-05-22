@@ -124,6 +124,56 @@
     @apply mx-auto w-[min(1180px,calc(100vw-2rem))] pt-12 pb-16;
   }
 
+  .top-nav {
+    @apply mb-6 flex w-full items-center justify-between gap-4 border px-4 py-3;
+    border-color: var(--panel-border);
+    background: rgba(4, 10, 20, 0.78);
+    backdrop-filter: blur(14px);
+  }
+
+  .top-nav-brand {
+    @apply grid gap-0.5;
+  }
+
+  .top-nav-brand-eyebrow {
+    @apply text-[0.75rem] uppercase tracking-[0.24em];
+    color: #92d7ff;
+  }
+
+  .top-nav-brand strong {
+    @apply text-[1rem];
+    color: var(--text-strong);
+  }
+
+  .top-nav-links {
+    @apply flex flex-wrap items-center justify-end gap-2;
+  }
+
+  .top-nav-link {
+    @apply rounded-full border px-4 py-2 text-[0.92rem] font-medium transition duration-200 ease-in-out;
+    border-color: var(--surface-border);
+    background: var(--surface-background);
+    color: var(--text-strong);
+  }
+
+  .top-nav-link:hover {
+    filter: brightness(1.06);
+  }
+
+  .top-nav-link-active {
+    background: linear-gradient(135deg, #67e8f9, #60a5fa 60%, #a78bfa);
+    border-color: transparent;
+    color: var(--button-text);
+  }
+
+  .page-stack {
+    @apply grid gap-5;
+  }
+
+  .page-panel {
+    @apply mb-0;
+  }
+
   .hero {
     @apply mb-6 grid grid-cols-[1.7fr_0.9fr] items-end gap-5;
   }
