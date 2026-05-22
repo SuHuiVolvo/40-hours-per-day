@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import type { Dispatch, FormEvent, RefObject, SetStateAction } from "react";
 import { CardCollapseButton } from "./CardCollapseButton";
 import { SectionCard } from "./SectionCard";
@@ -27,8 +28,11 @@ type PracticeRoadmapProps = {
   setIsUpdateSectionOpen: Dispatch<SetStateAction<boolean>>;
   isSectionActionsOpen: boolean;
   setIsSectionActionsOpen: Dispatch<SetStateAction<boolean>>;
+  isDeleteSectionConfirmOpen: boolean;
+  setIsDeleteSectionConfirmOpen: Dispatch<SetStateAction<boolean>>;
   sectionError: string;
   sectionSaving: boolean;
+  sectionDeleting: boolean;
   taskForm: TaskForm;
   setTaskForm: Dispatch<SetStateAction<TaskForm>>;
   taskError: string;
@@ -73,8 +77,11 @@ export function PracticeRoadmap({
   setIsUpdateSectionOpen,
   isSectionActionsOpen,
   setIsSectionActionsOpen,
+  isDeleteSectionConfirmOpen,
+  setIsDeleteSectionConfirmOpen,
   sectionError,
   sectionSaving,
+  sectionDeleting,
   taskForm,
   setTaskForm,
   taskError,
@@ -271,10 +278,9 @@ export function PracticeRoadmap({
                         type="button"
                         className="section-action-item danger"
                         onClick={() => {
+                          setIsDeleteSectionConfirmOpen(true);
                           setIsSectionActionsOpen(false);
-                          onRemoveSection();
                         }}
-                        disabled={selectedSection.id === backlogSectionId}
                       >
                         Delete session
                       </button>
@@ -283,6 +289,11 @@ export function PracticeRoadmap({
                 </div>
 
                 <div className="section-summary-tasks h-full">
+                  {sectionError ? (
+                    <p className="status error section-summary-error">
+                      {sectionError}
+                    </p>
+                  ) : null}
                   {!isTaskCreatorOpen &&
                   !isUpdateSectionOpen &&
                   selectedTasks.length === 0 ? (
@@ -465,6 +476,57 @@ export function PracticeRoadmap({
                   ) : null}
                 </div>
               </div>
+
+              {isDeleteSectionConfirmOpen && selectedSection
+                ? createPortal(
+                    <div
+                      className="delete-overlay"
+                      role="presentation"
+                      onClick={() => setIsDeleteSectionConfirmOpen(false)}
+                    >
+                      <div
+                        className="delete-dialog"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-session-title"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <p className="eyebrow delete-dialog-eyebrow">
+                          Confirm deletion
+                        </p>
+                        <h4 id="delete-session-title">Delete session?</h4>
+                        <p className="delete-dialog-copy">
+                          {selectedSection.name} and all of its tasks will be
+                          permanently removed.
+                        </p>
+                        {sectionError ? (
+                          <p className="status error">{sectionError}</p>
+                        ) : null}
+                        <div className="section-actions delete-dialog-actions">
+                          <button
+                            type="button"
+                            className="ghost"
+                            onClick={() => setIsDeleteSectionConfirmOpen(false)}
+                            disabled={sectionDeleting}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            className="primary danger-button"
+                            onClick={() => {
+                              void onRemoveSection();
+                            }}
+                            disabled={sectionDeleting}
+                          >
+                            {sectionDeleting ? "Deleting..." : "Delete session"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>,
+                    document.body,
+                  )
+                : null}
             </>
           ) : (
             <p className="empty-state">Create a section to start planning.</p>

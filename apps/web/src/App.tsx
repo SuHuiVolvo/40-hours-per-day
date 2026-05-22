@@ -42,8 +42,11 @@ function App() {
   const [isUpdateSectionOpen, setIsUpdateSectionOpen] = useState(false);
   const [isTaskCreatorOpen, setIsTaskCreatorOpen] = useState(false);
   const [isSectionActionsOpen, setIsSectionActionsOpen] = useState(false);
+  const [isDeleteSectionConfirmOpen, setIsDeleteSectionConfirmOpen] =
+    useState(false);
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
   const [sectionSaving, setSectionSaving] = useState(false);
+  const [sectionDeleting, setSectionDeleting] = useState(false);
   const [taskSaving, setTaskSaving] = useState(false);
   const [sectionError, setSectionError] = useState("");
   const [taskError, setTaskError] = useState("");
@@ -240,26 +243,38 @@ function App() {
   };
 
   const removeSection = async () => {
-    if (!selectedSection || selectedSection.id === backlogSectionId) {
+    if (!selectedSection) {
       return;
     }
+    setSectionError("");
+    setSectionDeleting(true);
 
-    const response = await fetch(
-      `${API_BASE}/api/sections/${selectedSection.id}`,
-      {
-        method: "DELETE",
-      },
-    );
-
-    if (!response.ok && response.status !== 204) {
-      throw new Error(
-        await readErrorMessage(response, "Unable to delete section."),
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/sections/${selectedSection.id}`,
+        {
+          method: "DELETE",
+        },
       );
-    }
 
-    setEditingTaskId(null);
-    setEditingTaskForm(initialTaskEditForm);
-    await refreshRoadmap();
+      if (!response.ok && response.status !== 204) {
+        throw new Error(
+          await readErrorMessage(response, "Unable to delete section."),
+        );
+      }
+
+      setEditingTaskId(null);
+      setEditingTaskForm(initialTaskEditForm);
+      setIsSectionActionsOpen(false);
+      setIsDeleteSectionConfirmOpen(false);
+      await refreshRoadmap();
+    } catch (error) {
+      setSectionError(
+        error instanceof Error ? error.message : "Unable to delete section.",
+      );
+    } finally {
+      setSectionDeleting(false);
+    }
   };
 
   const createTask = async (event: FormEvent<HTMLFormElement>) => {
@@ -498,6 +513,7 @@ function App() {
         setIsSectionActionsOpen={setIsSectionActionsOpen}
         sectionError={sectionError}
         sectionSaving={sectionSaving}
+        sectionDeleting={sectionDeleting}
         taskForm={taskForm}
         setTaskForm={setTaskForm}
         taskError={taskError}
@@ -512,6 +528,8 @@ function App() {
         setDraggedSectionId={setDraggedSectionId}
         sectionSummaryActionsRef={sectionSummaryActionsRef}
         taskCreatorRef={taskCreatorRef}
+        isDeleteSectionConfirmOpen={isDeleteSectionConfirmOpen}
+        setIsDeleteSectionConfirmOpen={setIsDeleteSectionConfirmOpen}
         onCreateSection={createSection}
         onUpdateSection={updateSection}
         onReorderSections={reorderSections}

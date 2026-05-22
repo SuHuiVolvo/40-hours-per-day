@@ -302,6 +302,40 @@
     background: rgba(248, 113, 113, 0.12);
   }
 
+  .delete-overlay {
+    @apply fixed inset-0 z-40 grid place-items-center p-4;
+    background: rgba(1, 6, 14, 0.7);
+    backdrop-filter: blur(10px);
+  }
+
+  .delete-dialog {
+    @apply grid w-full max-w-[32rem] gap-4 rounded-[1.5rem] border p-6 shadow-[0_30px_90px_rgba(0,0,0,0.4)];
+    border-color: rgba(173, 199, 255, 0.18);
+    background: rgba(7, 16, 30, 0.98);
+  }
+
+  .delete-dialog-eyebrow {
+    @apply mb-0;
+  }
+
+  .delete-dialog-copy {
+    @apply m-0 leading-[1.6];
+    color: var(--text-muted);
+  }
+
+  .delete-dialog-actions {
+    @apply justify-end;
+  }
+
+  .danger-button {
+    background: linear-gradient(135deg, #fb7185, #f97316 60%, #f59e0b);
+    color: #1d0b0f;
+  }
+
+  .danger-button:hover {
+    filter: brightness(1.03);
+  }
+
   .summary-metrics strong {
     @apply text-[2rem];
   }

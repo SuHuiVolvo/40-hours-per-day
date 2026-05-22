@@ -281,13 +281,6 @@ app.patch("/api/sections/reorder", (request, response) => {
 });
 
 app.delete("/api/sections/:id", (request, response) => {
-  if (request.params.id === "backlog") {
-    response
-      .status(400)
-      .json({ message: "The backlog section cannot be deleted." });
-    return;
-  }
-
   const result = deleteSection.run(request.params.id);
   if (result.changes === 0) {
     response.status(404).json({ message: "Section not found." });
