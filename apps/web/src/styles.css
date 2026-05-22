@@ -126,6 +126,151 @@ small,
   gap: 1.25rem;
 }
 
+.roadmap-panel {
+  margin-bottom: 1.25rem;
+}
+
+.roadmap-layout {
+  display: grid;
+  grid-template-columns: 0.92fr 1.08fr;
+  gap: 1.25rem;
+}
+
+.roadmap-sidebar,
+.roadmap-workspace {
+  display: grid;
+  gap: 1rem;
+}
+
+.section-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.section-card {
+  width: 100%;
+  text-align: left;
+  border-radius: 1rem;
+  border: 1px solid rgba(173, 199, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  padding: 1rem;
+}
+
+.section-card-active {
+  border-color: rgba(118, 211, 255, 0.55);
+  box-shadow: 0 0 0 2px rgba(118, 211, 255, 0.12);
+}
+
+.section-card-dragging {
+  opacity: 0.65;
+  transform: scale(0.99);
+}
+
+.section-card-header,
+.section-summary,
+.task-card-header,
+.task-actions,
+.section-actions,
+.task-complete-toggle,
+.task-status-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.section-card p,
+.section-summary p,
+.task-card-body p,
+.empty-state,
+.panel-subtitle {
+  margin: 0.35rem 0 0;
+  color: rgba(225, 236, 255, 0.76);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 0.55rem;
+  margin: 0.8rem 0 0.55rem;
+  border-radius: 999px;
+  background: rgba(145, 170, 210, 0.12);
+  overflow: hidden;
+}
+
+.progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #67e8f9, #60a5fa 60%, #a78bfa);
+}
+
+.section-summary {
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.summary-metrics {
+  display: grid;
+  text-align: right;
+}
+
+.summary-metrics strong {
+  font-size: 2rem;
+}
+
+.task-creator,
+.task-editor,
+.section-editor {
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(173, 199, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.task-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.task-card-column {
+  align-items: stretch;
+}
+
+.task-card-header {
+  align-items: center;
+}
+
+.task-card-body {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.task-meta {
+  display: grid;
+  gap: 0.2rem;
+  color: rgba(214, 228, 255, 0.72);
+  font-size: 0.95rem;
+}
+
+.task-complete-toggle,
+.task-status-toggle {
+  justify-content: flex-start;
+}
+
+.task-complete-toggle input,
+.task-status-toggle input {
+  width: auto;
+  margin-top: 0;
+}
+
+.empty-state {
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px dashed rgba(173, 199, 255, 0.2);
+}
+
 .panel {
   padding: 1.35rem;
 }
@@ -234,13 +379,26 @@ label {
   color: #fca5a5;
 }
 
+.secondary-grid {
+  margin-top: 1.25rem;
+}
+
+.recording-panel {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 900px) {
   .hero,
-  .grid {
+  .grid,
+  .roadmap-layout {
     grid-template-columns: 1fr;
   }
 
   .panel-wide {
+    grid-column: auto;
+  }
+
+  .recording-panel {
     grid-column: auto;
   }
 }
