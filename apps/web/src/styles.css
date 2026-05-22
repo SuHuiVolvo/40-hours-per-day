@@ -259,8 +259,12 @@
   }
 
   .section-summary {
-    @apply relative items-start rounded-2xl p-4 pr-16;
+    @apply relative flex-wrap items-start rounded-2xl p-4 pr-16;
     background: rgba(255, 255, 255, 0.2);
+  }
+
+  .section-summary-tasks {
+    @apply basis-full grid justify-items-start gap-2 pt-2;
   }
 
   .summary-metrics {
@@ -314,8 +318,16 @@
     @apply absolute right-3 top-3 min-h-8 min-w-8 rounded-[16px] px-2 text-center leading-none;
   }
 
+  .task-create-empty-toggle {
+    @apply inline-flex w-auto items-center justify-start gap-2 self-start;
+  }
+
+  .task-create-empty-icon {
+    @apply text-[1.15rem] leading-none;
+  }
+
   .task-list {
-    @apply mt-4 grid gap-3 p-0;
+    @apply mt-1 grid gap-2 p-0;
     list-style: none;
   }
 

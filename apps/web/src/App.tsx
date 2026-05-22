@@ -773,303 +773,262 @@ export default function App() {
                       </div>
                     ) : null}
                   </div>
-                </div>
 
-                {isUpdateSectionOpen ? (
-                  <form
-                    id="section-update-form"
-                    className="stack section-editor"
-                    onSubmit={updateSection}
-                  >
-                    <button
-                      type="button"
-                      className="section-editor-collapse"
-                      onClick={() => setIsUpdateSectionOpen(false)}
-                      aria-label="Hide edit session card"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                        focusable="false"
-                        className="section-editor-collapse-icon"
+                  <div className="section-summary-tasks">
+                    {isTaskCreatorOpen ? (
+                      <form
+                        className="stack task-creator"
+                        onSubmit={createTask}
+                        ref={taskCreatorRef}
                       >
-                        <path
-                          d="M6 14l6-6 6 6"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </button>
-                    <label>
-                      Section name
-                      <input
-                        value={sectionDraft.name}
-                        onChange={(event) =>
-                          setSectionDraft((current) => ({
-                            ...current,
-                            name: event.target.value,
-                          }))
-                        }
-                        required
-                      />
-                    </label>
-                    <label>
-                      Section description
-                      <textarea
-                        value={sectionDraft.description}
-                        onChange={(event) =>
-                          setSectionDraft((current) => ({
-                            ...current,
-                            description: event.target.value,
-                          }))
-                        }
-                        rows={3}
-                      />
-                    </label>
-                    <div className="section-actions">
-                      <button
-                        type="submit"
-                        className="primary"
-                        disabled={sectionSaving}
-                      >
-                        {sectionSaving ? "Updating..." : "Update section"}
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost"
-                        onClick={() =>
-                          removeSection().catch(() =>
-                            setSectionError("Unable to delete section."),
-                          )
-                        }
-                        disabled={selectedSection.id === backlogSectionId}
-                      >
-                        Delete section
-                      </button>
-                    </div>
-                  </form>
-                ) : null}
-
-                {isTaskCreatorOpen ? (
-                  <form
-                    className="stack task-creator"
-                    onSubmit={createTask}
-                    ref={taskCreatorRef}
-                  >
-                    <button
-                      type="button"
-                      className="section-editor-collapse"
-                      onClick={() => setIsTaskCreatorOpen(false)}
-                      aria-label="Hide add task card"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                        focusable="false"
-                        className="section-editor-collapse-icon"
-                      >
-                        <path
-                          d="M6 14l6-6 6 6"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </button>
-                    <h4>Add task</h4>
-                    <label>
-                      Task name
-                      <input
-                        name="task-title"
-                        value={taskForm.title}
-                        onChange={(event) =>
-                          setTaskForm((current) => ({
-                            ...current,
-                            title: event.target.value,
-                          }))
-                        }
-                        placeholder="Practice scales at 72 bpm"
-                        required
-                      />
-                    </label>
-                    <label>
-                      Description
-                      <textarea
-                        value={taskForm.details}
-                        onChange={(event) =>
-                          setTaskForm((current) => ({
-                            ...current,
-                            details: event.target.value,
-                          }))
-                        }
-                        placeholder="What to focus on and how to measure success"
-                        rows={3}
-                      />
-                    </label>
-                    <label>
-                      Deadline
-                      <input
-                        type="date"
-                        value={taskForm.deadline}
-                        onChange={(event) =>
-                          setTaskForm((current) => ({
-                            ...current,
-                            deadline: event.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    {taskError ? (
-                      <p className="status error">{taskError}</p>
-                    ) : null}
-                    <button
-                      type="submit"
-                      className="primary"
-                      disabled={taskSaving}
-                    >
-                      {taskSaving ? "Saving..." : "Add task"}
-                    </button>
-                  </form>
-                ) : null}
-
-                <div className="task-list">
-                  {selectedTasks.map((task) => (
-                    <article
-                      key={task.id}
-                      className="task-card task-card-column"
-                    >
-                      <div className="task-card-header">
-                        <label className="task-complete-toggle">
+                        <button
+                          type="button"
+                          className="section-editor-collapse"
+                          onClick={() => setIsTaskCreatorOpen(false)}
+                          aria-label="Hide add task card"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                            focusable="false"
+                            className="section-editor-collapse-icon"
+                          >
+                            <path
+                              d="M6 14l6-6 6 6"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                        <h4>Add task</h4>
+                        <label>
+                          Task name
                           <input
-                            type="checkbox"
-                            checked={task.isCompleted}
-                            onChange={() =>
-                              toggleTaskCompletion(task).catch(() =>
-                                setTaskError("Unable to update task."),
-                              )
+                            name="task-title"
+                            value={taskForm.title}
+                            onChange={(event) =>
+                              setTaskForm((current) => ({
+                                ...current,
+                                title: event.target.value,
+                              }))
+                            }
+                            placeholder="Practice scales at 72 bpm"
+                            required
+                          />
+                        </label>
+                        <label>
+                          Description
+                          <textarea
+                            value={taskForm.details}
+                            onChange={(event) =>
+                              setTaskForm((current) => ({
+                                ...current,
+                                details: event.target.value,
+                              }))
+                            }
+                            placeholder="What to focus on and how to measure success"
+                            rows={3}
+                          />
+                        </label>
+                        <label>
+                          Deadline
+                          <input
+                            type="date"
+                            value={taskForm.deadline}
+                            onChange={(event) =>
+                              setTaskForm((current) => ({
+                                ...current,
+                                deadline: event.target.value,
+                              }))
                             }
                           />
-                          <span>{task.isCompleted ? "Done" : "Open"}</span>
                         </label>
-                        <div className="task-actions">
-                          <button
-                            type="button"
-                            className="ghost"
-                            onClick={() => beginTaskEdit(task)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost"
-                            onClick={() => removeTask(task.id)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
+                        {taskError ? (
+                          <p className="status error">{taskError}</p>
+                        ) : null}
+                        <button
+                          type="submit"
+                          className="primary"
+                          disabled={taskSaving}
+                        >
+                          {taskSaving ? "Saving..." : "Add task"}
+                        </button>
+                      </form>
+                    ) : selectedTasks.length === 0 ? (
+                      <button
+                        type="button"
+                        className="primary section-create-toggle task-create-empty-toggle"
+                        onClick={() => {
+                          setIsTaskCreatorOpen(true);
+                          requestAnimationFrame(() => {
+                            taskCreatorRef.current?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "start",
+                            });
+                            taskCreatorRef.current
+                              ?.querySelector<HTMLInputElement>(
+                                'input[name="task-title"]',
+                              )
+                              ?.focus();
+                          });
+                        }}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="task-create-empty-icon"
+                        >
+                          +
+                        </span>
+                        <span>add task</span>
+                      </button>
+                    ) : null}
 
-                      {editingTaskId === task.id ? (
-                        <div className="stack task-editor">
-                          <label>
-                            Task name
-                            <input
-                              value={editingTaskForm.title}
-                              onChange={(event) =>
-                                setEditingTaskForm((current) => ({
-                                  ...current,
-                                  title: event.target.value,
-                                }))
-                              }
-                            />
-                          </label>
-                          <label>
-                            Description
-                            <textarea
-                              value={editingTaskForm.details}
-                              onChange={(event) =>
-                                setEditingTaskForm((current) => ({
-                                  ...current,
-                                  details: event.target.value,
-                                }))
-                              }
-                              rows={3}
-                            />
-                          </label>
-                          <label>
-                            Deadline
-                            <input
-                              type="date"
-                              value={editingTaskForm.deadline}
-                              onChange={(event) =>
-                                setEditingTaskForm((current) => ({
-                                  ...current,
-                                  deadline: event.target.value,
-                                }))
-                              }
-                            />
-                          </label>
-                          <label className="task-status-toggle">
-                            <input
-                              type="checkbox"
-                              checked={editingTaskForm.isCompleted}
-                              onChange={(event) =>
-                                setEditingTaskForm((current) => ({
-                                  ...current,
-                                  isCompleted: event.target.checked,
-                                }))
-                              }
-                            />
-                            <span>Mark as completed</span>
-                          </label>
-                          <div className="section-actions">
-                            <button
-                              type="button"
-                              className="primary"
-                              disabled={taskSaving}
-                              onClick={() =>
-                                saveTaskEdit(task.id).catch(() =>
-                                  setTaskError("Unable to update task."),
-                                )
-                              }
-                            >
-                              {taskSaving ? "Updating..." : "Save task"}
-                            </button>
-                            <button
-                              type="button"
-                              className="ghost"
-                              onClick={() => {
-                                setEditingTaskId(null);
-                                setEditingTaskForm(initialTaskEditForm);
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="task-card-body">
-                          <div>
-                            <strong>{task.title}</strong>
-                            <p>{task.details || "No extra details added."}</p>
-                          </div>
-                          <div className="task-meta">
-                            <span>Deadline: {formatDate(task.deadline)}</span>
-                            <span>
-                              {task.isCompleted
-                                ? `Completed ${formatTimestamp(task.completedAt ?? task.updatedAt)}`
-                                : "Not completed"}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </article>
-                  ))}
+                    {selectedTasks.length > 0 ? (
+                      <div className="task-list">
+                        {selectedTasks.map((task) => (
+                          <article
+                            key={task.id}
+                            className="task-card task-card-column"
+                          >
+                            <div className="task-card-header">
+                              <label className="task-complete-toggle">
+                                <input
+                                  type="checkbox"
+                                  checked={task.isCompleted}
+                                  onChange={() =>
+                                    toggleTaskCompletion(task).catch(() =>
+                                      setTaskError("Unable to update task."),
+                                    )
+                                  }
+                                />
+                                <span>
+                                  {task.isCompleted ? "Done" : "Open"}
+                                </span>
+                              </label>
+                              <div className="task-actions">
+                                <button
+                                  type="button"
+                                  className="ghost"
+                                  onClick={() => beginTaskEdit(task)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ghost"
+                                  onClick={() => removeTask(task.id)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+
+                            {editingTaskId === task.id ? (
+                              <div className="stack task-editor">
+                                <label>
+                                  Task name
+                                  <input
+                                    value={editingTaskForm.title}
+                                    onChange={(event) =>
+                                      setEditingTaskForm((current) => ({
+                                        ...current,
+                                        title: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                </label>
+                                <label>
+                                  Description
+                                  <textarea
+                                    value={editingTaskForm.details}
+                                    onChange={(event) =>
+                                      setEditingTaskForm((current) => ({
+                                        ...current,
+                                        details: event.target.value,
+                                      }))
+                                    }
+                                    rows={3}
+                                  />
+                                </label>
+                                <label>
+                                  Deadline
+                                  <input
+                                    type="date"
+                                    value={editingTaskForm.deadline}
+                                    onChange={(event) =>
+                                      setEditingTaskForm((current) => ({
+                                        ...current,
+                                        deadline: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                </label>
+                                <label className="task-status-toggle">
+                                  <input
+                                    type="checkbox"
+                                    checked={editingTaskForm.isCompleted}
+                                    onChange={(event) =>
+                                      setEditingTaskForm((current) => ({
+                                        ...current,
+                                        isCompleted: event.target.checked,
+                                      }))
+                                    }
+                                  />
+                                  <span>Mark as completed</span>
+                                </label>
+                                <div className="section-actions">
+                                  <button
+                                    type="button"
+                                    className="primary"
+                                    disabled={taskSaving}
+                                    onClick={() =>
+                                      saveTaskEdit(task.id).catch(() =>
+                                        setTaskError("Unable to update task."),
+                                      )
+                                    }
+                                  >
+                                    {taskSaving ? "Updating..." : "Save task"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="ghost"
+                                    onClick={() => {
+                                      setEditingTaskId(null);
+                                      setEditingTaskForm(initialTaskEditForm);
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="task-card-body">
+                                <div>
+                                  <strong>{task.title}</strong>
+                                  <p>
+                                    {task.details || "No extra details added."}
+                                  </p>
+                                </div>
+                                <div className="task-meta">
+                                  <span>
+                                    Deadline: {formatDate(task.deadline)}
+                                  </span>
+                                  <span>
+                                    {task.isCompleted
+                                      ? `Completed ${formatTimestamp(task.completedAt ?? task.updatedAt)}`
+                                      : "Not completed"}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </article>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </>
             ) : (
