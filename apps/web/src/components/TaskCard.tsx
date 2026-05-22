@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CardCollapseButton } from "./CardCollapseButton";
+import { useClickOutside } from "../hooks/useClickOutside";
 import {
   formatDate,
   formatTimestamp,
@@ -47,6 +48,7 @@ export function TaskCard({
   const [isExpanded, setIsExpanded] = useState(isEditing);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isMoveMenuOpen, setIsMoveMenuOpen] = useState(false);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (isEditing) {
@@ -55,6 +57,15 @@ export function TaskCard({
       setIsMoveMenuOpen(false);
     }
   }, [isEditing]);
+
+  useClickOutside(
+    actionMenuRef,
+    () => {
+      setIsActionMenuOpen(false);
+      setIsMoveMenuOpen(false);
+    },
+    isActionMenuOpen,
+  );
 
   const availableSections = sections.filter(
     (section) => section.id !== task.sectionId,
@@ -102,7 +113,7 @@ export function TaskCard({
           <strong>{task.title}</strong>
         </div>
 
-        <div className="task-card-actions">
+        <div className="task-card-actions" ref={actionMenuRef}>
           <button
             type="button"
             className="section-detail-toggle task-card-action-toggle"
@@ -116,84 +127,84 @@ export function TaskCard({
           >
             ⋮
           </button>
-        </div>
-      </div>
 
-      {isActionMenuOpen ? (
-        <div
-          id={`task-actions-${task.id}`}
-          className="task-action-menu"
-          role="menu"
-        >
-          <button
-            type="button"
-            className="task-action-item"
-            onClick={() => handleAction(() => handleBeginEdit())}
-            disabled={taskSaving}
-          >
-            Edit task
-          </button>
-          <button
-            type="button"
-            className="task-action-item"
-            onClick={() => handleAction(() => onDuplicate(task))}
-            disabled={taskSaving}
-          >
-            Duplicate task
-          </button>
-          <button
-            type="button"
-            className="task-action-item"
-            onClick={() => setIsMoveMenuOpen((current) => !current)}
-            disabled={taskSaving || availableSections.length === 0}
-          >
-            Move to session
-          </button>
-          {isMoveMenuOpen ? (
+          {isActionMenuOpen ? (
             <div
-              className="task-action-submenu"
-              role="group"
-              aria-label="Move task to session"
+              id={`task-actions-${task.id}`}
+              className="task-action-menu"
+              role="menu"
             >
-              {availableSections.length > 0 ? (
-                availableSections.map((section) => (
-                  <button
-                    key={section.id}
-                    type="button"
-                    className="task-action-item task-action-subitem"
-                    onClick={() =>
-                      handleAction(() => onMove(task.id, section.id))
-                    }
-                    disabled={taskSaving}
-                  >
-                    {section.name}
-                  </button>
-                ))
-              ) : (
-                <p className="task-action-empty">
-                  No other sessions available.
-                </p>
-              )}
+              <button
+                type="button"
+                className="task-action-item"
+                onClick={() => handleAction(() => handleBeginEdit())}
+                disabled={taskSaving}
+              >
+                Edit task
+              </button>
+              <button
+                type="button"
+                className="task-action-item"
+                onClick={() => handleAction(() => onDuplicate(task))}
+                disabled={taskSaving}
+              >
+                Duplicate task
+              </button>
+              <button
+                type="button"
+                className="task-action-item"
+                onClick={() => setIsMoveMenuOpen((current) => !current)}
+                disabled={taskSaving || availableSections.length === 0}
+              >
+                Move to session
+              </button>
+              {isMoveMenuOpen ? (
+                <div
+                  className="task-action-submenu"
+                  role="group"
+                  aria-label="Move task to session"
+                >
+                  {availableSections.length > 0 ? (
+                    availableSections.map((section) => (
+                      <button
+                        key={section.id}
+                        type="button"
+                        className="task-action-item task-action-subitem"
+                        onClick={() =>
+                          handleAction(() => onMove(task.id, section.id))
+                        }
+                        disabled={taskSaving}
+                      >
+                        {section.name}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="task-action-empty">
+                      No other sessions available.
+                    </p>
+                  )}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="task-action-item"
+                onClick={() => handleAction(() => onArchive(task.id))}
+                disabled={taskSaving}
+              >
+                Archive task
+              </button>
+              <button
+                type="button"
+                className="task-action-item danger"
+                onClick={() => handleAction(() => onDelete(task.id))}
+                disabled={taskSaving}
+              >
+                Delete task
+              </button>
             </div>
           ) : null}
-          <button
-            type="button"
-            className="task-action-item"
-            onClick={() => handleAction(() => onArchive(task.id))}
-            disabled={taskSaving}
-          >
-            Archive task
-          </button>
-          <button
-            type="button"
-            className="task-action-item danger"
-            onClick={() => handleAction(() => onDelete(task.id))}
-            disabled={taskSaving}
-          >
-            Delete task
-          </button>
         </div>
-      ) : null}
+      </div>
 
       {isEditing ? (
         <div className="stack task-editor w-full">

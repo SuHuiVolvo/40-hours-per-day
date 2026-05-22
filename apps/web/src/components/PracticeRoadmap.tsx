@@ -3,6 +3,7 @@ import type { Dispatch, FormEvent, RefObject, SetStateAction } from "react";
 import { CardCollapseButton } from "./CardCollapseButton";
 import { SectionCard } from "./SectionCard";
 import { TaskCard } from "./TaskCard";
+import { useClickOutside } from "../hooks/useClickOutside";
 import {
   type PracticeSection,
   type PracticeTask,
@@ -111,6 +112,12 @@ export function PracticeRoadmap({
   onMoveTask,
   onArchiveTask,
 }: PracticeRoadmapProps) {
+  useClickOutside(
+    sectionSummaryActionsRef,
+    () => setIsSectionActionsOpen(false),
+    isSectionActionsOpen,
+  );
+
   return (
     <section className="panel panel-wide roadmap-panel">
       <div className="panel-header">
